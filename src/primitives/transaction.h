@@ -130,6 +130,7 @@ public:
 /** An output of a transaction.  It contains the public key that the next input
  * must be able to sign with to claim it.
  */
+#pragma pack(push, 4)
 class CTxOut
 {
 public:
@@ -175,6 +176,7 @@ public:
 
     std::string ToString() const;
 };
+#pragma pack(pop)
 
 struct CMutableTransaction;
 
