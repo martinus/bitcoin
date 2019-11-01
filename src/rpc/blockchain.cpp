@@ -141,12 +141,12 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
         {
             UniValue objTx(UniValue::VOBJ);
             TxToUniv(*tx, uint256(), objTx, true, RPCSerializationFlags());
-            txs.push_back(objTx);
+            txs.push_back(std::move(objTx));
         }
         else
             txs.push_back(tx->GetHash().GetHex());
     }
-    result.pushKV("tx", txs);
+    result.pushKV("tx", std::move(txs));
     result.pushKV("time", block.GetBlockTime());
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
     result.pushKV("nonce", (uint64_t)block.nNonce);

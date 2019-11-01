@@ -56,20 +56,18 @@ bool UniValue::setNumStr(const std::string& val_)
 
 bool UniValue::setInt(uint64_t val_)
 {
-    std::ostringstream oss;
-
-    oss << val_;
-
-    return setNumStr(oss.str());
+    clear();
+    typ = VNUM;
+    val = std::to_string(val_);
+    return true;
 }
 
 bool UniValue::setInt(int64_t val_)
 {
-    std::ostringstream oss;
-
-    oss << val_;
-
-    return setNumStr(oss.str());
+    clear();
+    typ = VNUM;
+    val = std::to_string(val_);
+    return true;
 }
 
 bool UniValue::setFloat(double val_)
@@ -114,6 +112,16 @@ bool UniValue::push_back(const UniValue& val_)
     return true;
 }
 
+bool UniValue::push_back(UniValue&& val_)
+{
+    if (typ != VARR)
+        return false;
+
+    values.push_back(std::move(val_));
+    return true;
+}
+
+
 bool UniValue::push_backV(const std::vector<UniValue>& vec)
 {
     if (typ != VARR)
@@ -129,6 +137,11 @@ void UniValue::__pushKV(const std::string& key, const UniValue& val_)
     keys.push_back(key);
     values.push_back(val_);
 }
+void UniValue::__pushKV(const std::string& key, UniValue&& val_)
+{
+    keys.push_back(key);
+    values.push_back(std::move(val_));
+}
 
 bool UniValue::pushKV(const std::string& key, const UniValue& val_)
 {
@@ -140,6 +153,18 @@ bool UniValue::pushKV(const std::string& key, const UniValue& val_)
         values[idx] = val_;
     else
         __pushKV(key, val_);
+    return true;
+}
+bool UniValue::pushKV(const std::string& key, UniValue&& val_)
+{
+    if (typ != VOBJ)
+        return false;
+
+    size_t idx;
+    if (findKey(key, idx))
+        values[idx] = std::move(val_);
+    else
+        __pushKV(key, std::move(val_));
     return true;
 }
 
