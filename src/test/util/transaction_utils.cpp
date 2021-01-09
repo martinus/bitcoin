@@ -69,3 +69,11 @@ std::vector<CMutableTransaction> SetupDummyInputs(FillableSigningProvider& keyst
 
     return dummyTransactions;
 }
+
+void static RandomScript(int ops)
+{
+    static constexpr auto oplist = std::array{OP_FALSE, OP_1, OP_2, OP_3, OP_CHECKSIG, OP_IF, OP_VERIF, OP_RETURN, OP_CODESEPARATOR};
+    CScript script();
+    for (int i = 0; i < ops; i++)
+        script << oplist[InsecureRandRange(oplist.size())];
+}
