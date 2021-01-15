@@ -66,7 +66,7 @@ NodeContext& EnsureNodeContext(const util::Ref& context)
 
 CTxMemPool& EnsureMemPool(const util::Ref& context)
 {
-    NodeContext& node = EnsureNodeContext(context);
+    const NodeContext& node = EnsureNodeContext(context);
     if (!node.mempool) {
         throw JSONRPCError(RPC_CLIENT_MEMPOOL_DISABLED, "Mempool disabled or instance not found");
     }
@@ -75,7 +75,7 @@ CTxMemPool& EnsureMemPool(const util::Ref& context)
 
 ChainstateManager& EnsureChainman(const util::Ref& context)
 {
-    NodeContext& node = EnsureNodeContext(context);
+    const NodeContext& node = EnsureNodeContext(context);
     if (!node.chainman) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Node chainman not found");
     }
@@ -1283,7 +1283,7 @@ RPCHelpMan getblockchaininfo()
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
                     {
-                        {RPCResult::Type::STR, "chain", "current network name (main, test, regtest)"},
+                        {RPCResult::Type::STR, "chain", "current network name (main, test, signet, regtest)"},
                         {RPCResult::Type::NUM, "blocks", "the height of the most-work fully-validated chain. The genesis block has height 0"},
                         {RPCResult::Type::NUM, "headers", "the current number of headers we have validated"},
                         {RPCResult::Type::STR, "bestblockhash", "the hash of the currently best block"},

@@ -22,6 +22,7 @@
 #include <streams.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
+#include <test/util/net.h>
 #include <test/util/setup_common.h>
 #include <txmempool.h>
 #include <uint256.h>
@@ -34,6 +35,17 @@
 #include <optional>
 #include <string>
 #include <vector>
+
+template <typename... Callables>
+void CallOneOf(FuzzedDataProvider& fuzzed_data_provider, Callables... callables)
+{
+    constexpr size_t call_size{sizeof...(callables)};
+    static_assert(call_size >= 1);
+    const size_t call_index{fuzzed_data_provider.ConsumeIntegralInRange<size_t>(0, call_size - 1)};
+
+    size_t i{0};
+    return ((i++ == call_index ? callables() : void()), ...);
+}
 
 [[nodiscard]] inline std::vector<uint8_t> ConsumeRandomLengthByteVector(FuzzedDataProvider& fuzzed_data_provider, const size_t max_length = 4096) noexcept
 {
@@ -84,6 +96,14 @@ template <typename T>
         return std::nullopt;
     }
     return obj;
+}
+
+template <typename WeakEnumType, size_t size>
+[[nodiscard]] WeakEnumType ConsumeWeakEnum(FuzzedDataProvider& fuzzed_data_provider, const WeakEnumType (&all_types)[size]) noexcept
+{
+    return fuzzed_data_provider.ConsumeBool() ?
+               fuzzed_data_provider.PickValueInArray<WeakEnumType>(all_types) :
+               WeakEnumType(fuzzed_data_provider.ConsumeIntegral<typename std::underlying_type<WeakEnumType>::type>());
 }
 
 [[nodiscard]] inline opcodetype ConsumeOpcodeType(FuzzedDataProvider& fuzzed_data_provider) noexcept
@@ -156,37 +176,31 @@ template <typename T>
 [[nodiscard]] inline CTxDestination ConsumeTxDestination(FuzzedDataProvider& fuzzed_data_provider) noexcept
 {
     CTxDestination tx_destination;
-    switch (fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 5)) {
-    case 0: {
-        tx_destination = CNoDestination{};
-        break;
-    }
-    case 1: {
-        tx_destination = PKHash{ConsumeUInt160(fuzzed_data_provider)};
-        break;
-    }
-    case 2: {
-        tx_destination = ScriptHash{ConsumeUInt160(fuzzed_data_provider)};
-        break;
-    }
-    case 3: {
-        tx_destination = WitnessV0ScriptHash{ConsumeUInt256(fuzzed_data_provider)};
-        break;
-    }
-    case 4: {
-        tx_destination = WitnessV0KeyHash{ConsumeUInt160(fuzzed_data_provider)};
-        break;
-    }
-    case 5: {
-        WitnessUnknown witness_unknown{};
-        witness_unknown.version = fuzzed_data_provider.ConsumeIntegral<int>();
-        const std::vector<uint8_t> witness_unknown_program_1 = fuzzed_data_provider.ConsumeBytes<uint8_t>(40);
-        witness_unknown.length = witness_unknown_program_1.size();
-        std::copy(witness_unknown_program_1.begin(), witness_unknown_program_1.end(), witness_unknown.program);
-        tx_destination = witness_unknown;
-        break;
-    }
-    }
+    CallOneOf(
+        fuzzed_data_provider,
+        [&] {
+            tx_destination = CNoDestination{};
+        },
+        [&] {
+            tx_destination = PKHash{ConsumeUInt160(fuzzed_data_provider)};
+        },
+        [&] {
+            tx_destination = ScriptHash{ConsumeUInt160(fuzzed_data_provider)};
+        },
+        [&] {
+            tx_destination = WitnessV0ScriptHash{ConsumeUInt256(fuzzed_data_provider)};
+        },
+        [&] {
+            tx_destination = WitnessV0KeyHash{ConsumeUInt160(fuzzed_data_provider)};
+        },
+        [&] {
+            WitnessUnknown witness_unknown{};
+            witness_unknown.version = fuzzed_data_provider.ConsumeIntegral<int>();
+            const std::vector<uint8_t> witness_unknown_program_1 = fuzzed_data_provider.ConsumeBytes<uint8_t>(40);
+            witness_unknown.length = witness_unknown_program_1.size();
+            std::copy(witness_unknown_program_1.begin(), witness_unknown_program_1.end(), witness_unknown.program);
+            tx_destination = witness_unknown;
+        });
     return tx_destination;
 }
 
@@ -283,22 +297,45 @@ inline CService ConsumeService(FuzzedDataProvider& fuzzed_data_provider) noexcep
 
 inline CAddress ConsumeAddress(FuzzedDataProvider& fuzzed_data_provider) noexcept
 {
-    return {ConsumeService(fuzzed_data_provider), static_cast<ServiceFlags>(fuzzed_data_provider.ConsumeIntegral<uint64_t>()), fuzzed_data_provider.ConsumeIntegral<uint32_t>()};
+    return {ConsumeService(fuzzed_data_provider), ConsumeWeakEnum(fuzzed_data_provider, ALL_SERVICE_FLAGS), fuzzed_data_provider.ConsumeIntegral<uint32_t>()};
 }
 
-inline CNode ConsumeNode(FuzzedDataProvider& fuzzed_data_provider) noexcept
+template <bool ReturnUniquePtr = false>
+auto ConsumeNode(FuzzedDataProvider& fuzzed_data_provider, const std::optional<NodeId>& node_id_in = std::nullopt) noexcept
 {
-    const NodeId node_id = fuzzed_data_provider.ConsumeIntegral<NodeId>();
-    const ServiceFlags local_services = static_cast<ServiceFlags>(fuzzed_data_provider.ConsumeIntegral<uint64_t>());
+    const NodeId node_id = node_id_in.value_or(fuzzed_data_provider.ConsumeIntegral<NodeId>());
+    const ServiceFlags local_services = ConsumeWeakEnum(fuzzed_data_provider, ALL_SERVICE_FLAGS);
     const SOCKET socket = INVALID_SOCKET;
     const CAddress address = ConsumeAddress(fuzzed_data_provider);
     const uint64_t keyed_net_group = fuzzed_data_provider.ConsumeIntegral<uint64_t>();
     const uint64_t local_host_nonce = fuzzed_data_provider.ConsumeIntegral<uint64_t>();
     const CAddress addr_bind = ConsumeAddress(fuzzed_data_provider);
     const std::string addr_name = fuzzed_data_provider.ConsumeRandomLengthString(64);
-    const ConnectionType conn_type = fuzzed_data_provider.PickValueInArray({ConnectionType::INBOUND, ConnectionType::OUTBOUND_FULL_RELAY, ConnectionType::MANUAL, ConnectionType::FEELER, ConnectionType::BLOCK_RELAY, ConnectionType::ADDR_FETCH});
+    const ConnectionType conn_type = fuzzed_data_provider.PickValueInArray(ALL_CONNECTION_TYPES);
     const bool inbound_onion{conn_type == ConnectionType::INBOUND ? fuzzed_data_provider.ConsumeBool() : false};
-    return {node_id, local_services, socket, address, keyed_net_group, local_host_nonce, addr_bind, addr_name, conn_type, inbound_onion};
+    if constexpr (ReturnUniquePtr) {
+        return std::make_unique<CNode>(node_id, local_services, socket, address, keyed_net_group, local_host_nonce, addr_bind, addr_name, conn_type, inbound_onion);
+    } else {
+        return CNode{node_id, local_services, socket, address, keyed_net_group, local_host_nonce, addr_bind, addr_name, conn_type, inbound_onion};
+    }
+}
+inline std::unique_ptr<CNode> ConsumeNodeAsUniquePtr(FuzzedDataProvider& fdp, const std::optional<NodeId>& node_id_in = nullopt) { return ConsumeNode<true>(fdp, node_id_in); }
+
+inline void FillNode(FuzzedDataProvider& fuzzed_data_provider, CNode& node, const std::optional<int32_t>& version_in = std::nullopt) noexcept
+{
+    const ServiceFlags remote_services = ConsumeWeakEnum(fuzzed_data_provider, ALL_SERVICE_FLAGS);
+    const NetPermissionFlags permission_flags = ConsumeWeakEnum(fuzzed_data_provider, ALL_NET_PERMISSION_FLAGS);
+    const int32_t version = version_in.value_or(fuzzed_data_provider.ConsumeIntegral<int32_t>());
+    const bool filter_txs = fuzzed_data_provider.ConsumeBool();
+
+    node.nServices = remote_services;
+    node.m_permissionFlags = permission_flags;
+    node.nVersion = version;
+    node.SetCommonVersion(version);
+    if (node.m_tx_relay != nullptr) {
+        LOCK(node.m_tx_relay->cs_filter);
+        node.m_tx_relay->fRelayTxes = filter_txs;
+    }
 }
 
 inline void InitializeFuzzingContext(const std::string& chain_name = CBaseChainParams::REGTEST)
@@ -322,32 +359,26 @@ public:
             return nullptr;
         }
         std::string mode;
-        switch (m_fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 5)) {
-        case 0: {
-            mode = "r";
-            break;
-        }
-        case 1: {
-            mode = "r+";
-            break;
-        }
-        case 2: {
-            mode = "w";
-            break;
-        }
-        case 3: {
-            mode = "w+";
-            break;
-        }
-        case 4: {
-            mode = "a";
-            break;
-        }
-        case 5: {
-            mode = "a+";
-            break;
-        }
-        }
+        CallOneOf(
+            m_fuzzed_data_provider,
+            [&] {
+                mode = "r";
+            },
+            [&] {
+                mode = "r+";
+            },
+            [&] {
+                mode = "w";
+            },
+            [&] {
+                mode = "w+";
+            },
+            [&] {
+                mode = "a";
+            },
+            [&] {
+                mode = "a+";
+            });
 #ifdef _GNU_SOURCE
         const cookie_io_functions_t io_hooks = {
             FuzzedFileProvider::read,
@@ -445,66 +476,64 @@ public:
     return {fuzzed_data_provider};
 }
 
-#define WRITE_TO_STREAM_CASE(id, type, consume) \
-    case id: {                                  \
-        type o = consume;                       \
-        stream << o;                            \
-        break;                                  \
+#define WRITE_TO_STREAM_CASE(type, consume) \
+    [&] {                                   \
+        type o = consume;                   \
+        stream << o;                        \
     }
 template <typename Stream>
 void WriteToStream(FuzzedDataProvider& fuzzed_data_provider, Stream& stream) noexcept
 {
     while (fuzzed_data_provider.ConsumeBool()) {
         try {
-            switch (fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 13)) {
-                WRITE_TO_STREAM_CASE(0, bool, fuzzed_data_provider.ConsumeBool())
-                WRITE_TO_STREAM_CASE(1, char, fuzzed_data_provider.ConsumeIntegral<char>())
-                WRITE_TO_STREAM_CASE(2, int8_t, fuzzed_data_provider.ConsumeIntegral<int8_t>())
-                WRITE_TO_STREAM_CASE(3, uint8_t, fuzzed_data_provider.ConsumeIntegral<uint8_t>())
-                WRITE_TO_STREAM_CASE(4, int16_t, fuzzed_data_provider.ConsumeIntegral<int16_t>())
-                WRITE_TO_STREAM_CASE(5, uint16_t, fuzzed_data_provider.ConsumeIntegral<uint16_t>())
-                WRITE_TO_STREAM_CASE(6, int32_t, fuzzed_data_provider.ConsumeIntegral<int32_t>())
-                WRITE_TO_STREAM_CASE(7, uint32_t, fuzzed_data_provider.ConsumeIntegral<uint32_t>())
-                WRITE_TO_STREAM_CASE(8, int64_t, fuzzed_data_provider.ConsumeIntegral<int64_t>())
-                WRITE_TO_STREAM_CASE(9, uint64_t, fuzzed_data_provider.ConsumeIntegral<uint64_t>())
-                WRITE_TO_STREAM_CASE(10, float, fuzzed_data_provider.ConsumeFloatingPoint<float>())
-                WRITE_TO_STREAM_CASE(11, double, fuzzed_data_provider.ConsumeFloatingPoint<double>())
-                WRITE_TO_STREAM_CASE(12, std::string, fuzzed_data_provider.ConsumeRandomLengthString(32))
-                WRITE_TO_STREAM_CASE(13, std::vector<char>, ConsumeRandomLengthIntegralVector<char>(fuzzed_data_provider))
-            }
+            CallOneOf(
+                fuzzed_data_provider,
+                WRITE_TO_STREAM_CASE(bool, fuzzed_data_provider.ConsumeBool()),
+                WRITE_TO_STREAM_CASE(char, fuzzed_data_provider.ConsumeIntegral<char>()),
+                WRITE_TO_STREAM_CASE(int8_t, fuzzed_data_provider.ConsumeIntegral<int8_t>()),
+                WRITE_TO_STREAM_CASE(uint8_t, fuzzed_data_provider.ConsumeIntegral<uint8_t>()),
+                WRITE_TO_STREAM_CASE(int16_t, fuzzed_data_provider.ConsumeIntegral<int16_t>()),
+                WRITE_TO_STREAM_CASE(uint16_t, fuzzed_data_provider.ConsumeIntegral<uint16_t>()),
+                WRITE_TO_STREAM_CASE(int32_t, fuzzed_data_provider.ConsumeIntegral<int32_t>()),
+                WRITE_TO_STREAM_CASE(uint32_t, fuzzed_data_provider.ConsumeIntegral<uint32_t>()),
+                WRITE_TO_STREAM_CASE(int64_t, fuzzed_data_provider.ConsumeIntegral<int64_t>()),
+                WRITE_TO_STREAM_CASE(uint64_t, fuzzed_data_provider.ConsumeIntegral<uint64_t>()),
+                WRITE_TO_STREAM_CASE(float, fuzzed_data_provider.ConsumeFloatingPoint<float>()),
+                WRITE_TO_STREAM_CASE(double, fuzzed_data_provider.ConsumeFloatingPoint<double>()),
+                WRITE_TO_STREAM_CASE(std::string, fuzzed_data_provider.ConsumeRandomLengthString(32)),
+                WRITE_TO_STREAM_CASE(std::vector<char>, ConsumeRandomLengthIntegralVector<char>(fuzzed_data_provider)));
         } catch (const std::ios_base::failure&) {
             break;
         }
     }
 }
 
-#define READ_FROM_STREAM_CASE(id, type) \
-    case id: {                          \
-        type o;                         \
-        stream >> o;                    \
-        break;                          \
+#define READ_FROM_STREAM_CASE(type) \
+    [&] {                           \
+        type o;                     \
+        stream >> o;                \
     }
 template <typename Stream>
 void ReadFromStream(FuzzedDataProvider& fuzzed_data_provider, Stream& stream) noexcept
 {
     while (fuzzed_data_provider.ConsumeBool()) {
         try {
-            switch (fuzzed_data_provider.ConsumeIntegralInRange<int>(0, 13)) {
-                READ_FROM_STREAM_CASE(0, bool)
-                READ_FROM_STREAM_CASE(1, char)
-                READ_FROM_STREAM_CASE(2, int8_t)
-                READ_FROM_STREAM_CASE(3, uint8_t)
-                READ_FROM_STREAM_CASE(4, int16_t)
-                READ_FROM_STREAM_CASE(5, uint16_t)
-                READ_FROM_STREAM_CASE(6, int32_t)
-                READ_FROM_STREAM_CASE(7, uint32_t)
-                READ_FROM_STREAM_CASE(8, int64_t)
-                READ_FROM_STREAM_CASE(9, uint64_t)
-                READ_FROM_STREAM_CASE(10, float)
-                READ_FROM_STREAM_CASE(11, double)
-                READ_FROM_STREAM_CASE(12, std::string)
-                READ_FROM_STREAM_CASE(13, std::vector<char>)
-            }
+            CallOneOf(
+                fuzzed_data_provider,
+                READ_FROM_STREAM_CASE(bool),
+                READ_FROM_STREAM_CASE(char),
+                READ_FROM_STREAM_CASE(int8_t),
+                READ_FROM_STREAM_CASE(uint8_t),
+                READ_FROM_STREAM_CASE(int16_t),
+                READ_FROM_STREAM_CASE(uint16_t),
+                READ_FROM_STREAM_CASE(int32_t),
+                READ_FROM_STREAM_CASE(uint32_t),
+                READ_FROM_STREAM_CASE(int64_t),
+                READ_FROM_STREAM_CASE(uint64_t),
+                READ_FROM_STREAM_CASE(float),
+                READ_FROM_STREAM_CASE(double),
+                READ_FROM_STREAM_CASE(std::string),
+                READ_FROM_STREAM_CASE(std::vector<char>));
         } catch (const std::ios_base::failure&) {
             break;
         }
