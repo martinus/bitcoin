@@ -1110,14 +1110,14 @@ static RPCHelpMan decodepsbt()
     // Add the decoded tx
     UniValue tx_univ(UniValue::VOBJ);
     TxToUniv(CTransaction(*psbtx.tx), uint256(), tx_univ, false);
-    result.pushKV("tx", tx_univ);
+    result.pushKV("tx", std::move(tx_univ));
 
     // Unknown data
     UniValue unknowns(UniValue::VOBJ);
     for (auto entry : psbtx.unknown) {
         unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
     }
-    result.pushKV("unknown", unknowns);
+    result.pushKV("unknown", std::move(unknowns));
 
     // inputs
     CAmount total_in = 0;
@@ -1149,7 +1149,7 @@ static RPCHelpMan decodepsbt()
 
             UniValue non_wit(UniValue::VOBJ);
             TxToUniv(*input.non_witness_utxo, uint256(), non_wit, false);
-            in.pushKV("non_witness_utxo", non_wit);
+            in.pushKV("non_witness_utxo", std::move(non_wit));
 
             have_a_utxo = true;
         }
@@ -1170,7 +1170,7 @@ static RPCHelpMan decodepsbt()
             for (const auto& sig : input.partial_sigs) {
                 partial_sigs.pushKV(HexStr(sig.second.first), HexStr(sig.second.second));
             }
-            in.pushKV("partial_signatures", partial_sigs);
+            in.pushKV("partial_signatures", std::move(partial_sigs));
         }
 
         // Sighash
@@ -1182,12 +1182,12 @@ static RPCHelpMan decodepsbt()
         if (!input.redeem_script.empty()) {
             UniValue r(UniValue::VOBJ);
             ScriptToUniv(input.redeem_script, r, false);
-            in.pushKV("redeem_script", r);
+            in.pushKV("redeem_script", std::move(r));
         }
         if (!input.witness_script.empty()) {
             UniValue r(UniValue::VOBJ);
             ScriptToUniv(input.witness_script, r, false);
-            in.pushKV("witness_script", r);
+            in.pushKV("witness_script", std::move(r));
         }
 
         // keypaths
@@ -1200,9 +1200,9 @@ static RPCHelpMan decodepsbt()
 
                 keypath.pushKV("master_fingerprint", strprintf("%08x", ReadBE32(entry.second.fingerprint)));
                 keypath.pushKV("path", WriteHDKeypath(entry.second.path));
-                keypaths.push_back(keypath);
+                keypaths.push_back(std::move(keypath));
             }
-            in.pushKV("bip32_derivs", keypaths);
+            in.pushKV("bip32_derivs", std::move(keypaths));
         }
 
         // Final scriptSig and scriptwitness
@@ -1210,7 +1210,7 @@ static RPCHelpMan decodepsbt()
             UniValue scriptsig(UniValue::VOBJ);
             scriptsig.pushKV("asm", ScriptToAsmStr(input.final_script_sig, true));
             scriptsig.pushKV("hex", HexStr(input.final_script_sig));
-            in.pushKV("final_scriptSig", scriptsig);
+            in.pushKV("final_scriptSig", std::move(scriptsig));
         }
         if (!input.final_script_witness.IsNull()) {
             UniValue txinwitness(UniValue::VARR);
@@ -1218,7 +1218,7 @@ static RPCHelpMan decodepsbt()
             for (const auto& item : input.final_script_witness.stack) {
                 txinwitness.push_back(HexStr(item));
             }
-            in.pushKV("final_scriptwitness", txinwitness);
+            in.pushKV("final_scriptwitness", std::move(txinwitness));
         }
 
         // Unknown data
@@ -1227,12 +1227,12 @@ static RPCHelpMan decodepsbt()
             for (auto entry : input.unknown) {
                 unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
             }
-            in.pushKV("unknown", unknowns);
+            in.pushKV("unknown", std::move(unknowns));
         }
 
-        inputs.push_back(in);
+        inputs.push_back(std::move(in));
     }
-    result.pushKV("inputs", inputs);
+    result.pushKV("inputs", std::move(inputs));
 
     // outputs
     CAmount output_value = 0;
@@ -1245,12 +1245,12 @@ static RPCHelpMan decodepsbt()
         if (!output.redeem_script.empty()) {
             UniValue r(UniValue::VOBJ);
             ScriptToUniv(output.redeem_script, r, false);
-            out.pushKV("redeem_script", r);
+            out.pushKV("redeem_script", std::move(r));
         }
         if (!output.witness_script.empty()) {
             UniValue r(UniValue::VOBJ);
             ScriptToUniv(output.witness_script, r, false);
-            out.pushKV("witness_script", r);
+            out.pushKV("witness_script", std::move(r));
         }
 
         // keypaths
@@ -1262,9 +1262,9 @@ static RPCHelpMan decodepsbt()
                 keypath.pushKV("pubkey", HexStr(entry.first));
                 keypath.pushKV("master_fingerprint", strprintf("%08x", ReadBE32(entry.second.fingerprint)));
                 keypath.pushKV("path", WriteHDKeypath(entry.second.path));
-                keypaths.push_back(keypath);
+                keypaths.push_back(std::move(keypath));
             }
-            out.pushKV("bip32_derivs", keypaths);
+            out.pushKV("bip32_derivs", std::move(keypaths));
         }
 
         // Unknown data
@@ -1273,7 +1273,7 @@ static RPCHelpMan decodepsbt()
             for (auto entry : output.unknown) {
                 unknowns.pushKV(HexStr(entry.first), HexStr(entry.second));
             }
-            out.pushKV("unknown", unknowns);
+            out.pushKV("unknown", std::move(unknowns));
         }
 
         outputs.push_back(out);
@@ -1387,16 +1387,13 @@ static RPCHelpMan finalizepsbt()
 
     UniValue result(UniValue::VOBJ);
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-    std::string result_str;
 
     if (complete && extract) {
         ssTx << mtx;
-        result_str = HexStr(ssTx);
-        result.pushKV("hex", result_str);
+        result.pushKV("hex", HexStr(ssTx));
     } else {
         ssTx << psbtx;
-        result_str = EncodeBase64(ssTx.str());
-        result.pushKV("psbt", result_str);
+        result.pushKV("psbt", EncodeBase64(ssTx.str()));
     }
     result.pushKV("complete", complete);
 

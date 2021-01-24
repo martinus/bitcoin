@@ -178,7 +178,7 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     for (const CTxDestination& addr : addresses) {
         a.push_back(EncodeDestination(addr));
     }
-    out.pushKV("addresses", a);
+    out.pushKV("addresses", std::move(a));
 }
 
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags, const CTxUndo* txundo)
@@ -216,7 +216,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
             o.reserve(2);
             o.pushKV("asm", ScriptToAsmStr(txin.scriptSig, true));
             o.pushKV("hex", HexStr(txin.scriptSig));
-            in.pushKV("scriptSig", o);
+            in.pushKV("scriptSig", std::move(o));
         }
         if (!tx.vin[i].scriptWitness.IsNull()) {
             UniValue txinwitness(UniValue::VARR);
@@ -224,16 +224,16 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
             for (const auto& item : tx.vin[i].scriptWitness.stack) {
                 txinwitness.push_back(HexStr(item));
             }
-            in.pushKV("txinwitness", txinwitness);
+            in.pushKV("txinwitness", std::move(txinwitness));
         }
         if (calculate_fee) {
             const CTxOut& prev_txout = txundo->vprevout[i].out;
             amt_total_in += prev_txout.nValue;
         }
         in.pushKV("sequence", (int64_t)txin.nSequence);
-        vin.push_back(in);
+        vin.push_back(std::move(in));
     }
-    entry.pushKV("vin", vin);
+    entry.pushKV("vin", std::move(vin));
 
     UniValue vout(UniValue::VARR);
     vout.reserve(tx.vout.size());
@@ -248,14 +248,14 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
 
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
-        out.pushKV("scriptPubKey", o);
-        vout.push_back(out);
+        out.pushKV("scriptPubKey", std::move(o));
+        vout.push_back(std::move(out));
 
         if (calculate_fee) {
             amt_total_out += txout.nValue;
         }
     }
-    entry.pushKV("vout", vout);
+    entry.pushKV("vout", std::move(vout));
 
     if (calculate_fee) {
         const CAmount fee = amt_total_in - amt_total_out;
