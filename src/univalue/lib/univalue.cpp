@@ -67,20 +67,12 @@ bool UniValue::setNumStr(std::string&& val_)
 
 bool UniValue::setInt(uint64_t val_)
 {
-    std::ostringstream oss;
-
-    oss << val_;
-
-    return setNumStr(oss.str());
+    return setNumStr(std::to_string(val_));
 }
 
 bool UniValue::setInt(int64_t val_)
 {
-    std::ostringstream oss;
-
-    oss << val_;
-
-    return setNumStr(oss.str());
+    return setNumStr(std::to_string(val_));
 }
 
 bool UniValue::setFloat(double val_)
@@ -245,6 +237,17 @@ bool UniValue::pushKVs(const UniValue& obj)
 
     for (size_t i = 0; i < obj.keys.size(); i++)
         __pushKV(obj.keys[i], obj.values.at(i));
+
+    return true;
+}
+
+bool UniValue::pushKVs(UniValue&& obj)
+{
+    if (typ != VOBJ || obj.typ != VOBJ)
+        return false;
+
+    for (size_t i = 0; i < obj.keys.size(); i++)
+        __pushKV(std::move(obj.keys[i]), std::move(obj.values.at(i)));
 
     return true;
 }

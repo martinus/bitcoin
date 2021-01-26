@@ -108,6 +108,7 @@ public:
     bool pushKV(std::string&& key, UniValue&& val);
 
     bool pushKVs(const UniValue& obj);
+    bool pushKVs(UniValue&& obj);
 
     std::string write(unsigned int prettyIndent = 0,
                       unsigned int indentLevel = 0) const;
