@@ -214,6 +214,7 @@ static bool rest_headers(const util::Ref& context,
     }
     case RetFormat::JSON: {
         UniValue jsonHeaders(UniValue::VARR);
+        jsonHeaders.reserve(headers.size());
         for (const CBlockIndex *pindex : headers) {
             jsonHeaders.push_back(blockheaderToJSON(tip, pindex));
         }
@@ -595,6 +596,7 @@ static bool rest_getutxos(const util::Ref& context, HTTPRequest* req, const std:
         objGetUTXOResponse.pushKV("bitmap", bitmapStringRepresentation);
 
         UniValue utxos(UniValue::VARR);
+        utxos.reserve(outs.size());
         for (const CCoin& coin : outs) {
             UniValue utxo(UniValue::VOBJ);
             utxo.pushKV("height", (int32_t)coin.nHeight);

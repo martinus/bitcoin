@@ -162,6 +162,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
     result.pushKV("size", (int)::GetSerializeSize(block, PROTOCOL_VERSION));
     result.pushKV("weight", (int)::GetBlockWeight(block));
     UniValue txs(UniValue::VARR);
+    txs.reserve(block.vtx.size());
     if (txDetails) {
         CBlockUndo blockUndo;
         const bool have_undo = !IsBlockPruned(blockindex) && UndoReadFromDisk(blockUndo, blockindex);
@@ -465,6 +466,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
     }
 
     UniValue depends(UniValue::VARR);
+    depends.reserve(setDepends.size());
     for (const std::string& dep : setDepends)
     {
         depends.push_back(dep);
@@ -475,6 +477,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
     UniValue spent(UniValue::VARR);
     const CTxMemPool::txiter& it = pool.mapTx.find(tx.GetHash());
     const CTxMemPoolEntry::Children& children = it->GetMemPoolChildrenConst();
+    spent.reserve(children.size());
     for (const CTxMemPoolEntry& child : children) {
         spent.push_back(child.GetTx().GetHash().ToString());
     }
@@ -521,6 +524,7 @@ UniValue MempoolToJSON(const CTxMemPool& pool, bool verbose, bool include_mempoo
             mempool_sequence = pool.GetSequence();
         }
         UniValue a(UniValue::VARR);
+        a.reserve(vtxid.size());
         for (const uint256& hash : vtxid)
             a.push_back(hash.ToString());
 
@@ -630,6 +634,7 @@ static RPCHelpMan getmempoolancestors()
 
     if (!fVerbose) {
         UniValue o(UniValue::VARR);
+        o.reserve(setAncestors.size());
         for (CTxMemPool::txiter ancestorIt : setAncestors) {
             o.push_back(ancestorIt->GetTx().GetHash().ToString());
         }
@@ -694,6 +699,7 @@ static RPCHelpMan getmempooldescendants()
 
     if (!fVerbose) {
         UniValue o(UniValue::VARR);
+        o.reserve(setDescendants.size());
         for (CTxMemPool::txiter descendantIt : setDescendants) {
             o.push_back(descendantIt->GetTx().GetHash().ToString());
         }
@@ -1449,6 +1455,7 @@ static RPCHelpMan getchaintips()
 
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
+    res.reserve(setTips.size());
     for (const CBlockIndex* block : setTips) {
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("height", block->nHeight);
@@ -1996,6 +2003,7 @@ static RPCHelpMan getblockstats()
     CalculatePercentilesByWeight(feerate_percentiles, feerate_array, total_weight);
 
     UniValue feerates_res(UniValue::VARR);
+    feerates_res.reserve(NUM_GETBLOCKSTATS_PERCENTILES);
     for (int64_t i = 0; i < NUM_GETBLOCKSTATS_PERCENTILES; i++) {
         feerates_res.push_back(feerate_percentiles[i]);
     }
@@ -2201,7 +2209,7 @@ static RPCHelpMan scantxoutset()
             // no scan in progress
             return NullUniValue;
         }
-        result.pushKV("progress", g_scan_progress);
+        result.pushKV("progress", g_scan_progress.load());
         return result;
     } else if (request.params[0].get_str() == "abort") {
         CoinsViewScanReserver reserver;
@@ -2261,6 +2269,7 @@ static RPCHelpMan scantxoutset()
         result.pushKV("height", tip->nHeight);
         result.pushKV("bestblock", tip->GetBlockHash().GetHex());
 
+        unspents.reserve(coins.size());
         for (const auto& it : coins) {
             const COutPoint& outpoint = it.first;
             const Coin& coin = it.second;

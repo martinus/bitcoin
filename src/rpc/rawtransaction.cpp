@@ -1123,6 +1123,7 @@ static RPCHelpMan decodepsbt()
     CAmount total_in = 0;
     bool have_all_utxos = true;
     UniValue inputs(UniValue::VARR);
+    inputs.reserve(psbtx.inputs.size());
     for (unsigned int i = 0; i < psbtx.inputs.size(); ++i) {
         const PSBTInput& input = psbtx.inputs[i];
         UniValue in(UniValue::VOBJ);
@@ -1192,6 +1193,7 @@ static RPCHelpMan decodepsbt()
         // keypaths
         if (!input.hd_keypaths.empty()) {
             UniValue keypaths(UniValue::VARR);
+            keypaths.reserve(input.hd_keypaths.size());
             for (auto entry : input.hd_keypaths) {
                 UniValue keypath(UniValue::VOBJ);
                 keypath.pushKV("pubkey", HexStr(entry.first));
@@ -1212,6 +1214,7 @@ static RPCHelpMan decodepsbt()
         }
         if (!input.final_script_witness.IsNull()) {
             UniValue txinwitness(UniValue::VARR);
+            txinwitness.reserve(input.final_script_witness.stack.size());
             for (const auto& item : input.final_script_witness.stack) {
                 txinwitness.push_back(HexStr(item));
             }
@@ -1234,6 +1237,7 @@ static RPCHelpMan decodepsbt()
     // outputs
     CAmount output_value = 0;
     UniValue outputs(UniValue::VARR);
+    outputs.reserve(psbtx.outputs.size());
     for (unsigned int i = 0; i < psbtx.outputs.size(); ++i) {
         const PSBTOutput& output = psbtx.outputs[i];
         UniValue out(UniValue::VOBJ);
@@ -1252,6 +1256,7 @@ static RPCHelpMan decodepsbt()
         // keypaths
         if (!output.hd_keypaths.empty()) {
             UniValue keypaths(UniValue::VARR);
+            keypaths.reserve(output.hd_keypaths.size());
             for (auto entry : output.hd_keypaths) {
                 UniValue keypath(UniValue::VOBJ);
                 keypath.pushKV("pubkey", HexStr(entry.first));

@@ -156,6 +156,7 @@ void ScriptToUniv(const CScript& script, UniValue& out, bool include_address)
 void ScriptPubKeyToUniv(const CScript& scriptPubKey,
                         UniValue& out, bool fIncludeHex)
 {
+    out.reserve(6);
     TxoutType type;
     std::vector<CTxDestination> addresses;
     int nRequired;
@@ -173,6 +174,7 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     out.pushKV("type", GetTxnOutputType(type));
 
     UniValue a(UniValue::VARR);
+    a.reserve(addresses.size());
     for (const CTxDestination& addr : addresses) {
         a.push_back(EncodeDestination(addr));
     }
@@ -181,6 +183,8 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
 
 void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, bool include_hex, int serialize_flags, const CTxUndo* txundo)
 {
+    entry.reserve(entry.size() + 12);
+
     entry.pushKV("txid", tx.GetHash().GetHex());
     entry.pushKV("hash", tx.GetWitnessHash().GetHex());
     // Transaction version is actually unsigned in consensus checks, just signed in memory,
@@ -191,29 +195,32 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("weight", GetTransactionWeight(tx));
     entry.pushKV("locktime", (int64_t)tx.nLockTime);
 
-    UniValue vin{UniValue::VARR};
-
     // If available, use Undo data to calculate the fee. Note that txundo == nullptr
     // for coinbase transactions and for transactions where undo data is unavailable.
     const bool calculate_fee = txundo != nullptr;
     CAmount amt_total_in = 0;
     CAmount amt_total_out = 0;
 
+    UniValue vin{UniValue::VARR};
+    vin.reserve(tx.vin.size());
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
         const CTxIn& txin = tx.vin[i];
         UniValue in(UniValue::VOBJ);
+        in.reserve(5);
         if (tx.IsCoinBase()) {
             in.pushKV("coinbase", HexStr(txin.scriptSig));
         } else {
             in.pushKV("txid", txin.prevout.hash.GetHex());
             in.pushKV("vout", (int64_t)txin.prevout.n);
             UniValue o(UniValue::VOBJ);
+            o.reserve(2);
             o.pushKV("asm", ScriptToAsmStr(txin.scriptSig, true));
             o.pushKV("hex", HexStr(txin.scriptSig));
             in.pushKV("scriptSig", o);
         }
         if (!tx.vin[i].scriptWitness.IsNull()) {
             UniValue txinwitness(UniValue::VARR);
+            txinwitness.reserve(tx.vin[i].scriptWitness.stack.size());
             for (const auto& item : tx.vin[i].scriptWitness.stack) {
                 txinwitness.push_back(HexStr(item));
             }
@@ -229,10 +236,12 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
     entry.pushKV("vin", vin);
 
     UniValue vout(UniValue::VARR);
+    vout.reserve(tx.vout.size());
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
 
         UniValue out(UniValue::VOBJ);
+        out.reserve(3);
 
         out.pushKV("value", ValueFromAmount(txout.nValue));
         out.pushKV("n", (int64_t)i);
