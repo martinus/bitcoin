@@ -83,11 +83,13 @@ public:
     /** Enqueue a work item */
     bool Enqueue(WorkItem* item)
     {
-        LOCK(cs);
-        if (queue.size() >= maxDepth) {
-            return false;
+        {
+            LOCK(cs);
+            if (queue.size() >= maxDepth) {
+                return false;
+            }
+            queue.emplace_back(std::unique_ptr<WorkItem>(item));
         }
-        queue.emplace_back(std::unique_ptr<WorkItem>(item));
         cond.notify_one();
         return true;
     }
@@ -111,8 +113,10 @@ public:
     /** Interrupt and exit loops */
     void Interrupt()
     {
-        LOCK(cs);
-        running = false;
+        {
+            LOCK(cs);
+            running = false;
+        }
         cond.notify_all();
     }
 };
