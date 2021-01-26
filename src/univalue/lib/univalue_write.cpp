@@ -273,8 +273,6 @@ constexpr auto myEscapes = std::array<StrLen, 256>{{
 
 static void json_escape(const std::string& inS, std::string& outS)
 {
-    outS.reserve(inS.size() * 2);
-
     for (unsigned int i = 0; i < inS.size(); i++) {
         unsigned char ch = inS[i];
         auto const& escStr = myEscapes[ch];
