@@ -1,7 +1,7 @@
 // Copyright 2014 BitPay Inc.
 // Copyright 2015 Bitcoin Core Developers
 // Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// file COPYING or https://opensource.org/licenses/mit-license.php.
 
 #include <stdint.h>
 #include <iomanip>
@@ -54,6 +54,17 @@ bool UniValue::setNumStr(const std::string& val_)
     return true;
 }
 
+bool UniValue::setNumStr(std::string&& val_)
+{
+    if (!validNumStr(val_))
+        return false;
+
+    clear();
+    typ = VNUM;
+    val = std::move(val_);
+    return true;
+}
+
 bool UniValue::setInt(uint64_t val_)
 {
     std::ostringstream oss;
@@ -91,6 +102,14 @@ bool UniValue::setStr(const std::string& val_)
     return true;
 }
 
+bool UniValue::setStr(std::string&& val_)
+{
+    clear();
+    typ = VSTR;
+    val = std::move(val_);
+    return true;
+}
+
 bool UniValue::setArray()
 {
     clear();
@@ -114,6 +133,15 @@ bool UniValue::push_back(const UniValue& val_)
     return true;
 }
 
+bool UniValue::push_back(UniValue&& val_)
+{
+    if (typ != VARR)
+        return false;
+
+    values.push_back(std::move(val_));
+    return true;
+}
+
 bool UniValue::push_backV(const std::vector<UniValue>& vec)
 {
     if (typ != VARR)
@@ -124,10 +152,38 @@ bool UniValue::push_backV(const std::vector<UniValue>& vec)
     return true;
 }
 
+bool UniValue::push_backV(std::vector<UniValue>&& vec)
+{
+    if (typ != VARR)
+        return false;
+
+    values.insert(values.end(), std::make_move_iterator(vec.begin()), std::make_move_iterator(vec.end()));
+
+    return true;
+}
+
 void UniValue::__pushKV(const std::string& key, const UniValue& val_)
 {
     keys.push_back(key);
     values.push_back(val_);
+}
+
+void UniValue::__pushKV(const std::string& key, UniValue&& val_)
+{
+    keys.push_back(key);
+    values.push_back(std::move(val_));
+}
+
+void UniValue::__pushKV(std::string&& key, const UniValue& val_)
+{
+    keys.push_back(std::move(key));
+    values.push_back(val_);
+}
+
+void UniValue::__pushKV(std::string&& key, UniValue&& val_)
+{
+    keys.push_back(std::move(key));
+    values.push_back(std::move(val_));
 }
 
 bool UniValue::pushKV(const std::string& key, const UniValue& val_)
@@ -140,6 +196,45 @@ bool UniValue::pushKV(const std::string& key, const UniValue& val_)
         values[idx] = val_;
     else
         __pushKV(key, val_);
+    return true;
+}
+
+bool UniValue::pushKV(const std::string& key, UniValue&& val_)
+{
+    if (typ != VOBJ)
+        return false;
+
+    size_t idx;
+    if (findKey(key, idx))
+        values[idx] = std::move(val_);
+    else
+        __pushKV(key, std::move(val_));
+    return true;
+}
+
+bool UniValue::pushKV(std::string&& key, const UniValue& val_)
+{
+    if (typ != VOBJ)
+        return false;
+
+    size_t idx;
+    if (findKey(key, idx))
+        values[idx] = val_;
+    else
+        __pushKV(std::move(key), val_);
+    return true;
+}
+
+bool UniValue::pushKV(std::string&& key, UniValue&& val_)
+{
+    if (typ != VOBJ)
+        return false;
+
+    size_t idx;
+    if (findKey(key, idx))
+        values[idx] = std::move(val_);
+    else
+        __pushKV(std::move(key), std::move(val_));
     return true;
 }
 

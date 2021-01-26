@@ -1,7 +1,7 @@
 // Copyright 2014 BitPay Inc.
 // Copyright 2015 Bitcoin Core Developers
 // Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// file COPYING or https://opensource.org/licenses/mit-license.php.
 
 #ifndef __UNIVALUE_H__
 #define __UNIVALUE_H__
@@ -14,17 +14,13 @@
 #include <map>
 #include <cassert>
 
-#include <sstream>        // .get_int64()
-
 class UniValue {
 public:
     enum VType { VNULL, VOBJ, VARR, VSTR, VNUM, VBOOL, };
 
-    UniValue() { typ = VNULL; }
-    UniValue(UniValue::VType initialType, const std::string& initialStr = "") {
-        typ = initialType;
-        val = initialStr;
-    }
+    UniValue() : typ(VNULL) {}
+    UniValue(UniValue::VType type, const std::string& value = std::string()) : typ(type), val(value) {}
+    UniValue(UniValue::VType type, std::string&& value) : typ(type), val(std::move(value)) {}
     UniValue(uint64_t val_) {
         setInt(val_);
     }
@@ -43,21 +39,34 @@ public:
     UniValue(const std::string& val_) {
         setStr(val_);
     }
+    UniValue(std::string&& val_) {
+        setStr(std::move(val_));
+    }
     UniValue(const char *val_) {
-        std::string s(val_);
-        setStr(s);
+        setStr(std::string(val_));
     }
 
     void clear();
+    void reserve(size_t n) {
+        if (typ == VOBJ || typ == VARR) {
+            if (typ == VOBJ)
+                keys.reserve(n);
+            values.reserve(n);
+        } else if (typ != VNULL) {
+            val.reserve(n);
+        }
+    }
 
     bool setNull();
     bool setBool(bool val);
     bool setNumStr(const std::string& val);
+    bool setNumStr(std::string&& val);
     bool setInt(uint64_t val);
     bool setInt(int64_t val);
     bool setInt(int val_) { return setInt((int64_t)val_); }
     bool setFloat(double val);
     bool setStr(const std::string& val);
+    bool setStr(std::string&& val);
     bool setArray();
     bool setObject();
 
@@ -84,66 +93,20 @@ public:
     bool isObject() const { return (typ == VOBJ); }
 
     bool push_back(const UniValue& val);
-    bool push_back(const std::string& val_) {
-        UniValue tmpVal(VSTR, val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(const char *val_) {
-        std::string s(val_);
-        return push_back(s);
-    }
-    bool push_back(uint64_t val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(int64_t val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(bool val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(int val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
-    bool push_back(double val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
-    }
+    bool push_back(UniValue&& val);
     bool push_backV(const std::vector<UniValue>& vec);
+    bool push_backV(std::vector<UniValue>&& vec);
 
     void __pushKV(const std::string& key, const UniValue& val);
+    void __pushKV(const std::string& key, UniValue&& val);
+    void __pushKV(std::string&& key, const UniValue& val);
+    void __pushKV(std::string&& key, UniValue&& val);
+
     bool pushKV(const std::string& key, const UniValue& val);
-    bool pushKV(const std::string& key, const std::string& val_) {
-        UniValue tmpVal(VSTR, val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, const char *val_) {
-        std::string _val(val_);
-        return pushKV(key, _val);
-    }
-    bool pushKV(const std::string& key, int64_t val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, uint64_t val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, bool val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, int val_) {
-        UniValue tmpVal((int64_t)val_);
-        return pushKV(key, tmpVal);
-    }
-    bool pushKV(const std::string& key, double val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
-    }
+    bool pushKV(const std::string& key, UniValue&& val);
+    bool pushKV(std::string&& key, const UniValue& val);
+    bool pushKV(std::string&& key, UniValue&& val);
+
     bool pushKVs(const UniValue& obj);
 
     std::string write(unsigned int prettyIndent = 0,
@@ -162,6 +125,7 @@ private:
     std::vector<UniValue> values;
 
     bool findKey(const std::string& key, size_t& retIdx) const;
+    void write(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
     void writeArray(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
     void writeObject(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
 

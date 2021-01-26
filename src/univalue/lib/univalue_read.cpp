@@ -1,6 +1,6 @@
 // Copyright 2014 BitPay Inc.
 // Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// file COPYING or https://opensource.org/licenses/mit-license.php.
 
 #include <string.h>
 #include <vector>
@@ -172,7 +172,7 @@ enum jtokentype getJsonToken(std::string& tokenVal, unsigned int& consumed,
             }
         }
 
-        tokenVal = numStr;
+        tokenVal = std::move(numStr);
         consumed = (raw - rawStart);
         return JTOK_NUMBER;
         }
@@ -234,7 +234,7 @@ enum jtokentype getJsonToken(std::string& tokenVal, unsigned int& consumed,
 
         if (!writer.finalize())
             return JTOK_ERR;
-        tokenVal = valStr;
+        tokenVal = std::move(valStr);
         consumed = (raw - rawStart);
         return JTOK_STRING;
         }
@@ -273,7 +273,7 @@ bool UniValue::read(const char *raw, size_t size)
 
         tok = getJsonToken(tokenVal, consumed, raw, end);
         if (tok == JTOK_NONE || tok == JTOK_ERR)
-            return false;
+            goto return_fail;
         raw += consumed;
 
         bool isValueOpen = jsonTokenIsValue(tok) ||
@@ -281,33 +281,33 @@ bool UniValue::read(const char *raw, size_t size)
 
         if (expect(VALUE)) {
             if (!isValueOpen)
-                return false;
+                goto return_fail;
             clearExpect(VALUE);
 
         } else if (expect(ARR_VALUE)) {
             bool isArrValue = isValueOpen || (tok == JTOK_ARR_CLOSE);
             if (!isArrValue)
-                return false;
+                goto return_fail;
 
             clearExpect(ARR_VALUE);
 
         } else if (expect(OBJ_NAME)) {
             bool isObjName = (tok == JTOK_OBJ_CLOSE || tok == JTOK_STRING);
             if (!isObjName)
-                return false;
+                goto return_fail;
 
         } else if (expect(COLON)) {
             if (tok != JTOK_COLON)
-                return false;
+                goto return_fail;
             clearExpect(COLON);
 
         } else if (!expect(COLON) && (tok == JTOK_COLON)) {
-            return false;
+            goto return_fail;
         }
 
         if (expect(NOT_VALUE)) {
             if (isValueOpen)
-                return false;
+                goto return_fail;
             clearExpect(NOT_VALUE);
         }
 
@@ -325,14 +325,14 @@ bool UniValue::read(const char *raw, size_t size)
             } else {
                 UniValue tmpVal(utyp);
                 UniValue *top = stack.back();
-                top->values.push_back(tmpVal);
+                top->values.push_back(std::move(tmpVal));
 
                 UniValue *newTop = &(top->values.back());
                 stack.push_back(newTop);
             }
 
             if (stack.size() > MAX_JSON_DEPTH)
-                return false;
+                goto return_fail;
 
             if (utyp == VOBJ)
                 setExpect(OBJ_NAME);
@@ -344,12 +344,12 @@ bool UniValue::read(const char *raw, size_t size)
         case JTOK_OBJ_CLOSE:
         case JTOK_ARR_CLOSE: {
             if (!stack.size() || (last_tok == JTOK_COMMA))
-                return false;
+                goto return_fail;
 
             VType utyp = (tok == JTOK_OBJ_CLOSE ? VOBJ : VARR);
             UniValue *top = stack.back();
             if (utyp != top->getType())
-                return false;
+                goto return_fail;
 
             stack.pop_back();
             clearExpect(OBJ_NAME);
@@ -359,11 +359,11 @@ bool UniValue::read(const char *raw, size_t size)
 
         case JTOK_COLON: {
             if (!stack.size())
-                return false;
+                goto return_fail;
 
             UniValue *top = stack.back();
             if (top->getType() != VOBJ)
-                return false;
+                goto return_fail;
 
             setExpect(VALUE);
             break;
@@ -372,7 +372,7 @@ bool UniValue::read(const char *raw, size_t size)
         case JTOK_COMMA: {
             if (!stack.size() ||
                 (last_tok == JTOK_COMMA) || (last_tok == JTOK_ARR_OPEN))
-                return false;
+                goto return_fail;
 
             UniValue *top = stack.back();
             if (top->getType() == VOBJ)
@@ -400,12 +400,12 @@ bool UniValue::read(const char *raw, size_t size)
             }
 
             if (!stack.size()) {
-                *this = tmpVal;
+                *this = std::move(tmpVal);
                 break;
             }
 
             UniValue *top = stack.back();
-            top->values.push_back(tmpVal);
+            top->values.push_back(std::move(tmpVal));
 
             setExpect(NOT_VALUE);
             break;
@@ -414,12 +414,12 @@ bool UniValue::read(const char *raw, size_t size)
         case JTOK_NUMBER: {
             UniValue tmpVal(VNUM, tokenVal);
             if (!stack.size()) {
-                *this = tmpVal;
+                *this = std::move(tmpVal);
                 break;
             }
 
             UniValue *top = stack.back();
-            top->values.push_back(tmpVal);
+            top->values.push_back(std::move(tmpVal));
 
             setExpect(NOT_VALUE);
             break;
@@ -434,11 +434,11 @@ bool UniValue::read(const char *raw, size_t size)
             } else {
                 UniValue tmpVal(VSTR, tokenVal);
                 if (!stack.size()) {
-                    *this = tmpVal;
+                    *this = std::move(tmpVal);
                     break;
                 }
                 UniValue *top = stack.back();
-                top->values.push_back(tmpVal);
+                top->values.push_back(std::move(tmpVal));
             }
 
             setExpect(NOT_VALUE);
@@ -446,15 +446,19 @@ bool UniValue::read(const char *raw, size_t size)
             }
 
         default:
-            return false;
+            goto return_fail;
         }
     } while (!stack.empty ());
 
     /* Check that nothing follows the initial construct (parsed above).  */
     tok = getJsonToken(tokenVal, consumed, raw, end);
     if (tok != JTOK_NONE)
-        return false;
+        goto return_fail;
 
     return true;
+
+return_fail:
+    clear();
+    return false;
 }
 
