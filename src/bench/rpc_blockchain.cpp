@@ -29,7 +29,9 @@ static void BlockToJsonVerbose(benchmark::Bench& bench)
     blockindex.nBits = 403014710;
 
     bench.run([&] {
-        (void)blockToJSON(block, &blockindex, &blockindex, /*verbose*/ true);
+        auto uv = blockToJSON(block, &blockindex, &blockindex, /*verbose*/ true);
+        auto str = uv.write();
+        ankerl::nanobench::doNotOptimizeAway(str.size());
     });
 }
 
