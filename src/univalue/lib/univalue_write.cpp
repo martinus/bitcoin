@@ -273,6 +273,9 @@ constexpr auto myEscapes = std::array<StrLen, 256>{{
 
 static void json_escape(const std::string& inS, std::string& outS)
 {
+	if (outS.capacity() < outS.size() + inS.size()) {
+		outS.reserve(outS.size() + inS.size());
+	}
     for (unsigned int i = 0; i < inS.size(); i++) {
         unsigned char ch = inS[i];
         auto const& escStr = myEscapes[ch];
@@ -362,7 +365,8 @@ void UniValue::writeObject(unsigned int prettyIndent, unsigned int indentLevel, 
             indentStr(prettyIndent, indentLevel, s);
         s += '\"';
         json_escape(keys[i], s);
-        s += "\":";
+		s += '"';
+		s += ':';
         if (prettyIndent)
             s += ' ';
         values.at(i).write(prettyIndent, indentLevel + 1, s);
