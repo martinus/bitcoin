@@ -19,7 +19,8 @@ public:
     enum VType { VNULL, VOBJ, VARR, VSTR, VNUM, VBOOL, };
 
     UniValue() : typ(VNULL) {}
-    UniValue(UniValue::VType type, const std::string& value = std::string()) : typ(type), val(value) {}
+    UniValue(UniValue::VType type) : typ(type) {}
+    UniValue(UniValue::VType type, const std::string& value) : typ(type), val(value) {}
     UniValue(UniValue::VType type, std::string&& value) : typ(type), val(std::move(value)) {}
     UniValue(uint64_t val_) {
         setInt(val_);
