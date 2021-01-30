@@ -30,9 +30,33 @@ static void BlockToJsonVerbose(benchmark::Bench& bench)
 
     bench.run([&] {
         auto uv = blockToJSON(block, &blockindex, &blockindex, /*verbose*/ true);
+        ankerl::nanobench::doNotOptimizeAway(uv);
+    });
+}
+
+static void BlockToJsonWriteVerbose(benchmark::Bench& bench)
+{
+    TestingSetup test_setup{};
+
+    CDataStream stream(benchmark::data::block413567, SER_NETWORK, PROTOCOL_VERSION);
+    char a = '\0';
+    stream.write(&a, 1); // Prevent compaction
+
+    CBlock block;
+    stream >> block;
+
+    CBlockIndex blockindex;
+    const uint256 blockHash = block.GetHash();
+    blockindex.phashBlock = &blockHash;
+    blockindex.nBits = 403014710;
+
+    auto uv = blockToJSON(block, &blockindex, &blockindex, /*verbose*/ true);
+    bench.run([&] {
         auto str = uv.write();
         ankerl::nanobench::doNotOptimizeAway(str.size());
     });
 }
 
+
 BENCHMARK(BlockToJsonVerbose);
+BENCHMARK(BlockToJsonWriteVerbose);
