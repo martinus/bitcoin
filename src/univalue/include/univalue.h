@@ -137,6 +137,7 @@ private:
     char* writeObject(unsigned int prettyIndent, unsigned int indentLevel, char* s) const;
     size_t calcWriteObjectSize(unsigned int prettyIndent, unsigned int indentLevel) const;
 
+    void setNumStrUnvalidated(std::string&& val);
 
 public:
     // Strict type-specific getters, these throw std::runtime_error if the

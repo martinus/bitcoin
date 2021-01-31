@@ -64,14 +64,23 @@ bool UniValue::setNumStr(std::string&& val_)
     return true;
 }
 
+void UniValue::setNumStrUnvalidated(std::string&& val_)
+{
+    clear();
+    typ = VNUM;
+    val = std::move(val_);
+}
+
 bool UniValue::setInt(uint64_t val_)
 {
-    return setNumStr(std::to_string(val_));
+    setNumStrUnvalidated(std::to_string(val_));
+    return true;
 }
 
 bool UniValue::setInt(int64_t val_)
 {
-    return setNumStr(std::to_string(val_));
+    setNumStrUnvalidated(std::to_string(val_));
+    return true;
 }
 
 bool UniValue::setFloat(double val_)
@@ -80,9 +89,9 @@ bool UniValue::setFloat(double val_)
 
     oss << std::setprecision(16) << val_;
 
-    bool ret = setNumStr(oss.str());
+    setNumStrUnvalidated(oss.str());
     typ = VNUM;
-    return ret;
+    return true;
 }
 
 bool UniValue::setStr(const std::string& val_)
