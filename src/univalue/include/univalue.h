@@ -127,9 +127,16 @@ private:
     std::vector<UniValue> values;
 
     bool findKey(const std::string& key, size_t& retIdx) const;
-    void write(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
-    void writeArray(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
-    void writeObject(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
+
+    char* write(unsigned int prettyIndent, unsigned int indentLevel, char* s) const;
+    size_t calcWriteSize(unsigned int prettyIndent, unsigned int indentLevel) const;
+
+    char* writeArray(unsigned int prettyIndent, unsigned int indentLevel, char* s) const;
+    size_t calcWriteArraySize(unsigned int prettyIndent, unsigned int indentLevel) const;
+
+    char* writeObject(unsigned int prettyIndent, unsigned int indentLevel, char* s) const;
+    size_t calcWriteObjectSize(unsigned int prettyIndent, unsigned int indentLevel) const;
+
 
 public:
     // Strict type-specific getters, these throw std::runtime_error if the

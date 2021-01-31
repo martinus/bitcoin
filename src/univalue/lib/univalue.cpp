@@ -15,7 +15,6 @@ const UniValue NullUniValue;
 void UniValue::clear()
 {
     typ = VNULL;
-    val.clear();
     keys.clear();
     values.clear();
 }
