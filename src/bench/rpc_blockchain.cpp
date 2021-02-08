@@ -30,8 +30,7 @@ static void BlockToJsonVerbose(benchmark::Bench& bench)
 
     bench.run([&] {
         auto uv = blockToJSON(block, &blockindex, &blockindex, /*verbose*/ true);
-        auto str = uv.write();
-        ankerl::nanobench::doNotOptimizeAway(str.data());
+        ankerl::nanobench::doNotOptimizeAway(uv);
     });
 }
 
@@ -54,6 +53,7 @@ static void BlockToJsonWriteVerbose(benchmark::Bench& bench)
     auto uv = blockToJSON(block, &blockindex, &blockindex, /*verbose*/ true);
     bench.run([&] {
         auto str = uv.write();
+        ankerl::nanobench::doNotOptimizeAway(str);
     });
 }
 
