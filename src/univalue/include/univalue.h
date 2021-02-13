@@ -19,42 +19,41 @@ public:
     enum VType { VNULL, VOBJ, VARR, VSTR, VNUM, VBOOL, };
 
     UniValue() : typ(VNULL) {}
-    UniValue(UniValue::VType type) : typ(type) {}
-    UniValue(UniValue::VType type, const std::string& value) : typ(type), val(value) {}
-    UniValue(UniValue::VType type, std::string&& value) : typ(type), val(std::move(value)) {}
-    UniValue(uint64_t val_) {
-        setInt(val_);
-    }
-    UniValue(int64_t val_) {
-        setInt(val_);
-    }
+    UniValue(UniValue::VType initialType) : typ(initialType) {}
+    UniValue(UniValue::VType initialType, const std::string& initialStr) : typ(initialType), val(initialStr) {}
+    UniValue(UniValue::VType initialType, std::string&& initialStr) : typ(initialType), val(std::move(initialStr)) {}
+
+    UniValue(uint64_t val_) : typ(VNUM), val(std::to_string(val_)) {}
+    UniValue(int64_t val_) : typ(VNUM), val(std::to_string(val_)) {}
     UniValue(bool val_) {
         setBool(val_);
     }
-    UniValue(int val_) {
-        setInt(val_);
-    }
+    UniValue(int val_) : typ(VNUM), val(std::to_string(val_)) {}
     UniValue(double val_) {
         setFloat(val_);
     }
-    UniValue(const std::string& val_) {
-        setStr(val_);
-    }
-    UniValue(std::string&& val_) {
-        setStr(std::move(val_));
-    }
-    UniValue(const char *val_) {
-        setStr(std::string(val_));
-    }
+    UniValue(const std::string& val_) : typ(VSTR), val(val_) {}
+    UniValue(std::string&& val_) : typ(VSTR), val(std::move(val_)) {}
+    UniValue(const char *val_) : typ(VSTR), val(val_) {}
 
     void clear();
     void reserve(size_t n) {
-        if (typ == VOBJ || typ == VARR) {
-            if (typ == VOBJ)
-                keys.reserve(n);
+        switch (typ) {
+        case VOBJ:
+            keys.reserve(n);
             values.reserve(n);
-        } else if (typ != VNULL) {
+            break;
+
+        case VARR:
+            values.reserve(n);
+            break;
+
+        case VSTR:
             val.reserve(n);
+            break;
+
+        default:
+            break;
         }
     }
 
@@ -93,21 +92,41 @@ public:
     bool isArray() const { return (typ == VARR); }
     bool isObject() const { return (typ == VOBJ); }
 
-    bool push_back(const UniValue& val);
-    bool push_back(UniValue&& val);
+    template<typename Arg>
+    bool push_back(UniValue::VType t, Arg&& arg) {
+        if (typ != VARR)
+            return false;
+        values.emplace_back(t, std::forward<Arg>(arg));
+        return true;
+    }
+    template<typename Arg>
+    bool push_back(Arg&& arg) {
+        if (typ != VARR)
+            return false;
+        values.emplace_back(std::forward<Arg>(arg));
+        return true;
+    }
     bool push_backV(const std::vector<UniValue>& vec);
     bool push_backV(std::vector<UniValue>&& vec);
 
-    void __pushKV(const std::string& key, const UniValue& val);
-    void __pushKV(const std::string& key, UniValue&& val);
-    void __pushKV(std::string&& key, const UniValue& val);
-    void __pushKV(std::string&& key, UniValue&& val);
+    template<typename K, typename V>
+    void __pushKV(K&& key, V&& val) {
+        keys.emplace_back(std::forward<K>(key));
+        values.emplace_back(std::forward<V>(val));
+    }
 
-    bool pushKV(const std::string& key, const UniValue& val);
-    bool pushKV(const std::string& key, UniValue&& val);
-    bool pushKV(std::string&& key, const UniValue& val);
-    bool pushKV(std::string&& key, UniValue&& val);
+    template<typename K, typename V>
+    bool pushKV(K&& key, V&& val_) {
+        if (typ != VOBJ)
+            return false;
 
+        size_t idx;
+        if (findKey(key, idx))
+            values[idx] = std::forward<V>(val_);
+        else
+            __pushKV(std::forward<K>(key), std::forward<V>(val_));
+        return true;
+    }
     bool pushKVs(const UniValue& obj);
     bool pushKVs(UniValue&& obj);
 
@@ -127,17 +146,9 @@ private:
     std::vector<UniValue> values;
 
     bool findKey(const std::string& key, size_t& retIdx) const;
-
-    char* write(unsigned int prettyIndent, unsigned int indentLevel, char* s) const;
-    size_t calcWriteSize(unsigned int prettyIndent, unsigned int indentLevel) const;
-
-    char* writeArray(unsigned int prettyIndent, unsigned int indentLevel, char* s) const;
-    size_t calcWriteArraySize(unsigned int prettyIndent, unsigned int indentLevel) const;
-
-    char* writeObject(unsigned int prettyIndent, unsigned int indentLevel, char* s) const;
-    size_t calcWriteObjectSize(unsigned int prettyIndent, unsigned int indentLevel) const;
-
-    void setNumStrUnvalidated(std::string&& val);
+    void write(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
+    void writeArray(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
+    void writeObject(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const;
 
 public:
     // Strict type-specific getters, these throw std::runtime_error if the

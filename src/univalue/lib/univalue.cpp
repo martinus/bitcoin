@@ -15,6 +15,7 @@ const UniValue NullUniValue;
 void UniValue::clear()
 {
     typ = VNULL;
+    val.clear();
     keys.clear();
     values.clear();
 }
@@ -64,23 +65,14 @@ bool UniValue::setNumStr(std::string&& val_)
     return true;
 }
 
-void UniValue::setNumStrUnvalidated(std::string&& val_)
-{
-    clear();
-    typ = VNUM;
-    val = std::move(val_);
-}
-
 bool UniValue::setInt(uint64_t val_)
 {
-    setNumStrUnvalidated(std::to_string(val_));
-    return true;
+    return setNumStr(std::to_string(val_));
 }
 
 bool UniValue::setInt(int64_t val_)
 {
-    setNumStrUnvalidated(std::to_string(val_));
-    return true;
+    return setNumStr(std::to_string(val_));
 }
 
 bool UniValue::setFloat(double val_)
@@ -89,23 +81,25 @@ bool UniValue::setFloat(double val_)
 
     oss << std::setprecision(16) << val_;
 
-    setNumStrUnvalidated(oss.str());
+    bool ret = setNumStr(oss.str());
     typ = VNUM;
-    return true;
+    return ret;
 }
 
 bool UniValue::setStr(const std::string& val_)
 {
-    clear();
     typ = VSTR;
+    keys.clear();
+    values.clear();
     val = val_;
     return true;
 }
 
 bool UniValue::setStr(std::string&& val_)
 {
-    clear();
     typ = VSTR;
+    keys.clear();
+    values.clear();
     val = std::move(val_);
     return true;
 }
@@ -121,24 +115,6 @@ bool UniValue::setObject()
 {
     clear();
     typ = VOBJ;
-    return true;
-}
-
-bool UniValue::push_back(const UniValue& val_)
-{
-    if (typ != VARR)
-        return false;
-
-    values.push_back(val_);
-    return true;
-}
-
-bool UniValue::push_back(UniValue&& val_)
-{
-    if (typ != VARR)
-        return false;
-
-    values.push_back(std::move(val_));
     return true;
 }
 
@@ -159,82 +135,6 @@ bool UniValue::push_backV(std::vector<UniValue>&& vec)
 
     values.insert(values.end(), std::make_move_iterator(vec.begin()), std::make_move_iterator(vec.end()));
 
-    return true;
-}
-
-void UniValue::__pushKV(const std::string& key, const UniValue& val_)
-{
-    keys.push_back(key);
-    values.push_back(val_);
-}
-
-void UniValue::__pushKV(const std::string& key, UniValue&& val_)
-{
-    keys.push_back(key);
-    values.push_back(std::move(val_));
-}
-
-void UniValue::__pushKV(std::string&& key, const UniValue& val_)
-{
-    keys.push_back(std::move(key));
-    values.push_back(val_);
-}
-
-void UniValue::__pushKV(std::string&& key, UniValue&& val_)
-{
-    keys.push_back(std::move(key));
-    values.push_back(std::move(val_));
-}
-
-bool UniValue::pushKV(const std::string& key, const UniValue& val_)
-{
-    if (typ != VOBJ)
-        return false;
-
-    size_t idx;
-    if (findKey(key, idx))
-        values[idx] = val_;
-    else
-        __pushKV(key, val_);
-    return true;
-}
-
-bool UniValue::pushKV(const std::string& key, UniValue&& val_)
-{
-    if (typ != VOBJ)
-        return false;
-
-    size_t idx;
-    if (findKey(key, idx))
-        values[idx] = std::move(val_);
-    else
-        __pushKV(key, std::move(val_));
-    return true;
-}
-
-bool UniValue::pushKV(std::string&& key, const UniValue& val_)
-{
-    if (typ != VOBJ)
-        return false;
-
-    size_t idx;
-    if (findKey(key, idx))
-        values[idx] = val_;
-    else
-        __pushKV(std::move(key), val_);
-    return true;
-}
-
-bool UniValue::pushKV(std::string&& key, UniValue&& val_)
-{
-    if (typ != VOBJ)
-        return false;
-
-    size_t idx;
-    if (findKey(key, idx))
-        values[idx] = std::move(val_);
-    else
-        __pushKV(std::move(key), std::move(val_));
     return true;
 }
 
