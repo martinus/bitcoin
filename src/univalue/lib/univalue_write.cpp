@@ -9,14 +9,25 @@
 
 static void json_escape(const std::string& inS, std::string& outS)
 {
-    for (unsigned int i = 0; i < inS.size(); i++) {
-        unsigned char ch = inS[i];
-        const char *escStr = escapes[ch];
+    // two passes: first determine the size, then copy all data over.
+    // This is faster than having a single pass, because std::string's += is slow since it has to check the size
+    // every time.
+    size_t s = 0;
+    for (unsigned char ch : inS) {
+        s += escapesLen[ch];
+    }
 
-        if (escStr)
-            outS += escStr;
-        else
-            outS += ch;
+    // now that we know the exact size, prepare the string then directly copy into the data.
+    outS.resize(outS.size() + s);
+    auto* ptr = &outS[outS.size() - s];
+
+    for (unsigned char ch : inS) {
+        auto len = escapesLen[ch];
+        if (len == 1) {
+            *ptr++ = (char)ch;
+        } else {
+            ptr = std::copy(escapes[ch], escapes[ch] + len, ptr);
+        }
     }
 }
 
@@ -47,9 +58,9 @@ void UniValue::write(unsigned int prettyIndent,
         writeArray(prettyIndent, modIndent, s);
         break;
     case VSTR:
-        s += "\"";
+        s += '"';
         json_escape(val, s);
-        s += "\"";
+        s += '"';
         break;
     case VNUM:
         s += val;
@@ -67,49 +78,50 @@ static void indentStr(unsigned int prettyIndent, unsigned int indentLevel, std::
 
 void UniValue::writeArray(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const
 {
-    s += "[";
+    s += '[';
     if (prettyIndent)
-        s += "\n";
+        s += '\n';
 
     for (unsigned int i = 0; i < values.size(); i++) {
         if (prettyIndent)
             indentStr(prettyIndent, indentLevel, s);
         values[i].write(prettyIndent, indentLevel + 1, s);
         if (i != (values.size() - 1)) {
-            s += ",";
+            s += ',';
         }
         if (prettyIndent)
-            s += "\n";
+            s += '\n';
     }
 
     if (prettyIndent)
         indentStr(prettyIndent, indentLevel - 1, s);
-    s += "]";
+    s += ']';
 }
 
 void UniValue::writeObject(unsigned int prettyIndent, unsigned int indentLevel, std::string& s) const
 {
-    s += "{";
+    s += '{';
     if (prettyIndent)
-        s += "\n";
+        s += '\n';
 
     for (unsigned int i = 0; i < keys.size(); i++) {
         if (prettyIndent)
             indentStr(prettyIndent, indentLevel, s);
-        s += "\"";
+        s += '\"';
         json_escape(keys[i], s);
-        s += "\":";
+        s += '"';
+        s += ':';
         if (prettyIndent)
-            s += " ";
+            s += ' ';
         values.at(i).write(prettyIndent, indentLevel + 1, s);
         if (i != (values.size() - 1))
-            s += ",";
+            s += ',';
         if (prettyIndent)
-            s += "\n";
+            s += '\n';
     }
 
     if (prettyIndent)
         indentStr(prettyIndent, indentLevel - 1, s);
-    s += "}";
+    s += '}';
 }
 
