@@ -106,12 +106,12 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) {
     batch.Write(DB_HEAD_BLOCKS, Vector(hashBlock, old_tip));
 
     for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end();) {
-        if (it->second.flags & CCoinsCacheEntry::DIRTY) {
+        if (it->second.Flags() & CCoinsCacheEntry::DIRTY) {
             CoinEntry entry(&it->first);
-            if (it->second.coin.IsSpent())
+            if (it->second.GetCoin().IsSpent())
                 batch.Erase(entry);
             else
-                batch.Write(entry, it->second.coin);
+                batch.Write(entry, it->second.GetCoin());
             changed++;
         }
         count++;

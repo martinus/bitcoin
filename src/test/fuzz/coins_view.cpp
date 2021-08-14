@@ -116,15 +116,15 @@ FUZZ_TARGET_INIT(coins_view, initialize_coins_view)
                 CCoinsMap coins_map;
                 while (fuzzed_data_provider.ConsumeBool()) {
                     CCoinsCacheEntry coins_cache_entry;
-                    coins_cache_entry.flags = fuzzed_data_provider.ConsumeIntegral<unsigned char>();
+                    coins_cache_entry.Flags(fuzzed_data_provider.ConsumeIntegral<unsigned char>());
                     if (fuzzed_data_provider.ConsumeBool()) {
-                        coins_cache_entry.coin = random_coin;
+                        coins_cache_entry.MutableCoin([&](Coin& c) { c = random_coin; });
                     } else {
                         const std::optional<Coin> opt_coin = ConsumeDeserializable<Coin>(fuzzed_data_provider);
                         if (!opt_coin) {
                             return;
                         }
-                        coins_cache_entry.coin = *opt_coin;
+                        coins_cache_entry.MutableCoin([&](Coin& c) { c = *opt_coin; });
                     }
                     coins_map.emplace(random_out_point, std::move(coins_cache_entry));
                 }
