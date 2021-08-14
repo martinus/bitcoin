@@ -21,6 +21,8 @@
 #include <functional>
 #include <unordered_map>
 
+class CCoinsCacheEntry;
+
 /**
  * A UTXO entry.
  *
@@ -84,6 +86,15 @@ public:
     size_t DynamicMemoryUsage() const {
         return memusage::DynamicUsage(out.scriptPubKey);
     }
+
+private:
+    /**
+     * Coin is 8byte aligned due to CTxOut's CAmount nValue member. We can expose the required padding here for friend's to use.
+     * That must be done very carefully though so it is never accidentally overwritten (e.g. when moving/copying the object).
+     */
+    uint32_t padding{};
+
+    friend struct CCoinsCacheEntry;
 };
 
 /**
@@ -100,12 +111,36 @@ public:
  * - unspent, not FRESH, not DIRTY (e.g. an unspent coin fetched from the parent cache)
  * - spent, FRESH, not DIRTY (e.g. a spent coin fetched from the parent cache)
  * - spent, not FRESH, DIRTY (e.g. a coin is spent and spentness needs to be flushed to the parent)
+ *
+ * To save space this class makes use of Coin's internal padding. This must be done carefully though,
+ * so the only way to modify the m_coin member is through the MutableCoin method which always backs up
+ * and restores the flags so it can't be overwritten accidentally.
  */
-struct CCoinsCacheEntry
+class CCoinsCacheEntry
 {
-    Coin coin; // The actual cached data.
-    unsigned char flags;
+    Coin m_coin; // The actual cached data.
 
+    /**
+     * RAII object that stores flags on construction and restores it in the dtor.
+     */
+    class FlagsGuard
+    {
+        CCoinsCacheEntry* m_coins_cache_entry{};
+        unsigned char m_flags{};
+
+    public:
+        explicit FlagsGuard(CCoinsCacheEntry* coins_cache_entry)
+            : m_coins_cache_entry(coins_cache_entry), m_flags(coins_cache_entry->Flags())
+        {
+        }
+        
+        ~FlagsGuard()
+        {
+            m_coins_cache_entry->Flags(m_flags);
+        }
+    };
+
+public:
     enum Flags {
         /**
          * DIRTY means the CCoinsCacheEntry is potentially different from the
@@ -127,9 +162,49 @@ struct CCoinsCacheEntry
         FRESH = (1 << 1),
     };
 
-    CCoinsCacheEntry() : flags(0) {}
-    explicit CCoinsCacheEntry(Coin&& coin_) : coin(std::move(coin_)), flags(0) {}
-    CCoinsCacheEntry(Coin&& coin_, unsigned char flag) : coin(std::move(coin_)), flags(flag) {}
+    CCoinsCacheEntry()
+    {
+        Flags(0);
+    }
+
+    explicit CCoinsCacheEntry(Coin&& coin) : m_coin(std::move(coin))
+    {
+        Flags(0);
+    }
+
+    CCoinsCacheEntry(Coin&& coin, unsigned char flag) : m_coin(std::move(coin))
+    {
+        Flags(flag);
+    }
+
+    unsigned char Flags() const noexcept
+    {
+        return m_coin.padding;
+    }
+
+    void Flags(unsigned char f) noexcept
+    {
+        m_coin.padding = f;
+    }
+
+    Coin const& GetCoin() const noexcept
+    {
+        return m_coin;
+    }
+
+    /**
+     * Because we make use of the coin's padding, we have to be very careful when modifying it.
+     * Thus, this is the only way to actually modify the coin, and it backs up & restores the flags.
+     *
+     * @param op Functor to call with the mutable coin.
+     */
+    template <typename Op>
+    auto MutableCoin(Op op)
+    {
+        // using an RAII object to restore flags so it is also restored in case of an exception in op().
+        auto flags_guard = FlagsGuard(this);
+        return op(m_coin);
+    }
 };
 
 using CCoinsMapFactory = node_allocator::UnorderedMapFactory<COutPoint, CCoinsCacheEntry, SaltedOutpointHasher>;

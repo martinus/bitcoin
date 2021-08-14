@@ -18,6 +18,11 @@
 
 #include <boost/test/unit_test.hpp>
 
+/**
+ * Make sure we can use the Coin's padding in CCoinsCacheEntry
+ */
+static_assert(sizeof(CCoinsCacheEntry) == sizeof(Coin));
+
 int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out);
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight);
 
@@ -57,10 +62,10 @@ public:
     bool BatchWrite(CCoinsMap& mapCoins, const uint256& hashBlock) override
     {
         for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end(); ) {
-            if (it->second.flags & CCoinsCacheEntry::DIRTY) {
+            if (it->second.Flags() & CCoinsCacheEntry::DIRTY) {
                 // Same optimization used in CCoinsViewDB is to only write dirty entries.
-                map_[it->first] = it->second.coin;
-                if (it->second.coin.IsSpent() && InsecureRandRange(3) == 0) {
+                map_[it->first] = it->second.GetCoin();
+                if (it->second.GetCoin().IsSpent() && InsecureRandRange(3) == 0) {
                     // Randomly delete empty entries on write.
                     map_.erase(it->first);
                 }
@@ -84,7 +89,7 @@ public:
         size_t ret{memusage::DynamicUsage(cacheCoins) + cacheCoinsMemoryResource.DynamicMemoryUsage()};
         size_t count = 0;
         for (const auto& entry : cacheCoins) {
-            ret += entry.second.coin.DynamicMemoryUsage();
+            ret += entry.second.GetCoin().DynamicMemoryUsage();
             ++count;
         }
         BOOST_CHECK_EQUAL(GetCacheSize(), count);
@@ -583,11 +588,14 @@ static size_t InsertCoinsMapEntry(CCoinsMap& map, CAmount value, char flags)
     }
     assert(flags != NO_ENTRY);
     CCoinsCacheEntry entry;
-    entry.flags = flags;
-    SetCoinsValue(value, entry.coin);
+    entry.Flags(flags);
+    entry.MutableCoin([&](Coin& c) {
+        SetCoinsValue(value, c);
+    });
+
     auto inserted = map.emplace(OUTPOINT, std::move(entry));
     assert(inserted.second);
-    return inserted.first->second.coin.DynamicMemoryUsage();
+    return inserted.first->second.GetCoin().DynamicMemoryUsage();
 }
 
 void GetCoinsMapEntry(const CCoinsMap& map, CAmount& value, char& flags)
@@ -597,12 +605,12 @@ void GetCoinsMapEntry(const CCoinsMap& map, CAmount& value, char& flags)
         value = ABSENT;
         flags = NO_ENTRY;
     } else {
-        if (it->second.coin.IsSpent()) {
+        if (it->second.GetCoin().IsSpent()) {
             value = SPENT;
         } else {
-            value = it->second.coin.out.nValue;
+            value = it->second.GetCoin().out.nValue;
         }
-        flags = it->second.flags;
+        flags = it->second.Flags();
         assert(flags != NO_ENTRY);
     }
 }
