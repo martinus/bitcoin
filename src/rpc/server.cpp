@@ -233,15 +233,15 @@ static RPCHelpMan getrpcinfo()
         UniValue entry(UniValue::VOBJ);
         entry.pushKV("method", info.method);
         entry.pushKV("duration", GetTimeMicros() - info.start);
-        active_commands.push_back(entry);
+        active_commands.push_back(std::move(entry));
     }
 
     UniValue result(UniValue::VOBJ);
-    result.pushKV("active_commands", active_commands);
+    result.pushKV("active_commands", std::move(active_commands));
 
     const std::string path = LogInstance().m_file_path.string();
     UniValue log_path(UniValue::VSTR, path);
-    result.pushKV("logpath", log_path);
+    result.pushKV("logpath", std::move(log_path));
 
     return result;
 }
@@ -424,7 +424,7 @@ static inline JSONRPCRequest transformNamedArguments(const JSONRPCRequest& in, c
                 out.params.push_back(UniValue());
             }
             hole = 0;
-            out.params.push_back(*fr->second);
+            out.params.push_back(fr->second->copy());
             argsIn.erase(fr);
         } else {
             hole += 1;
@@ -502,8 +502,8 @@ UniValue CRPCTable::dumpArgMap(const JSONRPCRequest& args_request) const
     for (const auto& cmd : mapCommands) {
         UniValue result;
         if (ExecuteCommands(cmd.second, request, result)) {
-            for (const auto& values : result.getValues()) {
-                ret.push_back(values);
+            for (auto& values : result.getValues()) {
+                ret.push_back(std::move(values));
             }
         }
     }

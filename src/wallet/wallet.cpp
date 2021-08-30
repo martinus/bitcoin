@@ -72,7 +72,7 @@ bool RemoveWalletSetting(interfaces::Chain& chain, const std::string& wallet_nam
     if (!setting_value.isArray()) return true;
     util::SettingsValue new_value(util::SettingsValue::VARR);
     for (const util::SettingsValue& value : setting_value.getValues()) {
-        if (!value.isStr() || value.get_str() != wallet_name) new_value.push_back(value);
+        if (!value.isStr() || value.get_str() != wallet_name) new_value.push_back(value.copy());
     }
     if (new_value.size() == setting_value.size()) return true;
     return chain.updateRwSetting("wallet", new_value);

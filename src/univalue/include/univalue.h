@@ -1,7 +1,7 @@
 // Copyright 2014 BitPay Inc.
 // Copyright 2015 Bitcoin Core Developers
 // Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// file COPYING or https://opensource.org/licenses/mit-license.php.
 
 #ifndef __UNIVALUE_H__
 #define __UNIVALUE_H__
@@ -14,17 +14,18 @@
 #include <map>
 #include <cassert>
 
-#include <sstream>        // .get_int64()
-
 class UniValue {
 public:
+    UniValue copy() const {
+        return *this;
+    }
+    
     enum VType { VNULL, VOBJ, VARR, VSTR, VNUM, VBOOL, };
 
-    UniValue() { typ = VNULL; }
-    UniValue(UniValue::VType initialType, const std::string& initialStr = "") {
-        typ = initialType;
-        val = initialStr;
-    }
+    UniValue() = default;
+    UniValue(UniValue::VType initialType) : typ(initialType) {}
+    UniValue(UniValue::VType initialType, const std::string& initialStr) :typ(initialType), val(initialStr) {}
+    UniValue(UniValue::VType initialType, std::string&& initialStr) : typ(initialType), val(std::move(initialStr)) {}
     UniValue(uint64_t val_) {
         setInt(val_);
     }
@@ -43,9 +44,11 @@ public:
     UniValue(const std::string& val_) {
         setStr(val_);
     }
+    UniValue(std::string&& val_) {
+        setStr(std::move(val_));
+    }
     UniValue(const char *val_) {
-        std::string s(val_);
-        setStr(s);
+        setStr(std::string(val_));
     }
 
     void clear();
@@ -53,11 +56,13 @@ public:
     bool setNull();
     bool setBool(bool val);
     bool setNumStr(const std::string& val);
+    bool setNumStr(std::string&& val);
     bool setInt(uint64_t val);
     bool setInt(int64_t val);
     bool setInt(int val_) { return setInt((int64_t)val_); }
     bool setFloat(double val);
     bool setStr(const std::string& val);
+    bool setStr(std::string&& val);
     bool setArray();
     bool setObject();
 
@@ -84,67 +89,94 @@ public:
     bool isObject() const { return (typ == VOBJ); }
 
     bool push_back(const UniValue& val);
+    bool push_back(UniValue&& val);
     bool push_back(const std::string& val_) {
-        UniValue tmpVal(VSTR, val_);
-        return push_back(tmpVal);
+        return push_back(UniValue(VSTR, val_));
+    }
+    bool push_back(std::string&& val_) {
+        return push_back(UniValue(VSTR, std::move(val_)));
     }
     bool push_back(const char *val_) {
-        std::string s(val_);
-        return push_back(s);
+        return push_back(std::string(val_));
     }
     bool push_back(uint64_t val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
+        return push_back(UniValue(val_));
     }
     bool push_back(int64_t val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
+        return push_back(UniValue(val_));
     }
     bool push_back(bool val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
+        return push_back(UniValue(val_));
     }
     bool push_back(int val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
+        return push_back(UniValue(val_));
     }
     bool push_back(double val_) {
-        UniValue tmpVal(val_);
-        return push_back(tmpVal);
+        return push_back(UniValue(val_));
     }
     bool push_backV(const std::vector<UniValue>& vec);
+    bool push_backV(std::vector<UniValue>&& vec);
 
     void __pushKV(const std::string& key, const UniValue& val);
+    void __pushKV(const std::string& key, UniValue&& val);
+    void __pushKV(std::string&& key, const UniValue& val);
+    void __pushKV(std::string&& key, UniValue&& val);
+
     bool pushKV(const std::string& key, const UniValue& val);
+    bool pushKV(const std::string& key, UniValue&& val);
+    bool pushKV(std::string&& key, const UniValue& val);
+    bool pushKV(std::string&& key, UniValue&& val);
+    
     bool pushKV(const std::string& key, const std::string& val_) {
-        UniValue tmpVal(VSTR, val_);
-        return pushKV(key, tmpVal);
+        return pushKV(key, UniValue(VSTR, val_));
+    }
+    bool pushKV(std::string&& key, const std::string& val_) {
+        return pushKV(std::move(key), UniValue(VSTR, val_));
+    }
+    bool pushKV(const std::string& key, std::string&& val_) {
+        return pushKV(key, UniValue(VSTR, std::move(val_)));
+    }
+    bool pushKV(std::string&& key, std::string&& val_) {
+        return pushKV(std::move(key), UniValue(VSTR, std::move(val_)));
     }
     bool pushKV(const std::string& key, const char *val_) {
-        std::string _val(val_);
-        return pushKV(key, _val);
+        return pushKV(key, std::string(val_));
+    }
+    bool pushKV(std::string&& key, const char *val_) {
+        return pushKV(std::move(key), std::string(val_));
     }
     bool pushKV(const std::string& key, int64_t val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
+        return pushKV(key, UniValue(val_));
+    }
+    bool pushKV(std::string&& key, int64_t val_) {
+        return pushKV(std::move(key), UniValue(val_));
     }
     bool pushKV(const std::string& key, uint64_t val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
+        return pushKV(key, UniValue(val_));
     }
+    bool pushKV(std::string&& key, uint64_t val_) {
+        return pushKV(std::move(key), UniValue(val_));
+    }    
     bool pushKV(const std::string& key, bool val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
+        return pushKV(key, UniValue(val_));
+    }
+    bool pushKV(std::string&& key, bool val_) {
+        return pushKV(std::move(key), UniValue(val_));
     }
     bool pushKV(const std::string& key, int val_) {
-        UniValue tmpVal((int64_t)val_);
-        return pushKV(key, tmpVal);
+        return pushKV(key, UniValue((int64_t)val_));
     }
+    bool pushKV(std::string&& key, int val_) {
+        return pushKV(std::move(key), UniValue((int64_t)val_));
+    }    
     bool pushKV(const std::string& key, double val_) {
-        UniValue tmpVal(val_);
-        return pushKV(key, tmpVal);
+        return pushKV(key, UniValue(val_));
     }
+    bool pushKV(std::string&& key, double val_) {
+        return pushKV(std::move(key), UniValue(val_));
+    }    
     bool pushKVs(const UniValue& obj);
+    bool pushKVs(UniValue&& obj);
 
     std::string write(unsigned int prettyIndent = 0,
                       unsigned int indentLevel = 0) const;
@@ -156,7 +188,7 @@ public:
     }
 
 private:
-    UniValue::VType typ;
+    UniValue::VType typ = VNULL;
     std::string val;                       // numbers are stored as C++ strings
     std::vector<std::string> keys;
     std::vector<UniValue> values;

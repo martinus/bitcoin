@@ -1,18 +1,14 @@
 // Copyright 2014 BitPay Inc.
 // Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// file COPYING or https://opensource.org/licenses/mit-license.php.
 
 #include <iomanip>
-#include <sstream>
 #include <stdio.h>
 #include "univalue.h"
 #include "univalue_escapes.h"
 
-static std::string json_escape(const std::string& inS)
+static void json_escape(const std::string& inS, std::string& outS)
 {
-    std::string outS;
-    outS.reserve(inS.size() * 2);
-
     for (unsigned int i = 0; i < inS.size(); i++) {
         unsigned char ch = inS[i];
         const char *escStr = escapes[ch];
@@ -22,8 +18,6 @@ static std::string json_escape(const std::string& inS)
         else
             outS += ch;
     }
-
-    return outS;
 }
 
 std::string UniValue::write(unsigned int prettyIndent,
@@ -47,7 +41,9 @@ std::string UniValue::write(unsigned int prettyIndent,
         writeArray(prettyIndent, modIndent, s);
         break;
     case VSTR:
-        s += "\"" + json_escape(val) + "\"";
+        s += '"';
+        json_escape(val, s);
+        s += '"';
         break;
     case VNUM:
         s += val;
@@ -96,7 +92,10 @@ void UniValue::writeObject(unsigned int prettyIndent, unsigned int indentLevel, 
     for (unsigned int i = 0; i < keys.size(); i++) {
         if (prettyIndent)
             indentStr(prettyIndent, indentLevel, s);
-        s += "\"" + json_escape(keys[i]) + "\":";
+        s += '"';
+        json_escape(keys[i], s);
+        s += '"';
+        s += ':';
         if (prettyIndent)
             s += " ";
         s += values.at(i).write(prettyIndent, indentLevel + 1);

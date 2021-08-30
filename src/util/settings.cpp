@@ -98,7 +98,7 @@ bool WriteSettings(const fs::path& path,
 {
     SettingsValue out(SettingsValue::VOBJ);
     for (const auto& value : values) {
-        out.__pushKV(value.first, value.second);
+        out.__pushKV(value.first, value.second.copy());
     }
     fsbridge::ofstream file;
     file.open(path);

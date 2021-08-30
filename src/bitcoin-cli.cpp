@@ -290,7 +290,7 @@ public:
             total += counts.at(i);
         }
         addresses.pushKV("total", total);
-        result.pushKV("addresses_known", addresses);
+        result.pushKV("addresses_known", std::move(addresses));
         return JSONRPCReplyObj(result, NullUniValue, 1);
     }
 };
@@ -331,35 +331,35 @@ public:
         if (!batch[ID_BLOCKCHAININFO]["error"].isNull()) {
             return batch[ID_BLOCKCHAININFO];
         }
-        result.pushKV("version", batch[ID_NETWORKINFO]["result"]["version"]);
-        result.pushKV("blocks", batch[ID_BLOCKCHAININFO]["result"]["blocks"]);
-        result.pushKV("headers", batch[ID_BLOCKCHAININFO]["result"]["headers"]);
-        result.pushKV("verificationprogress", batch[ID_BLOCKCHAININFO]["result"]["verificationprogress"]);
-        result.pushKV("timeoffset", batch[ID_NETWORKINFO]["result"]["timeoffset"]);
+        result.pushKV("version", batch[ID_NETWORKINFO]["result"]["version"].copy());
+        result.pushKV("blocks", batch[ID_BLOCKCHAININFO]["result"]["blocks"].copy());
+        result.pushKV("headers", batch[ID_BLOCKCHAININFO]["result"]["headers"].copy());
+        result.pushKV("verificationprogress", batch[ID_BLOCKCHAININFO]["result"]["verificationprogress"].copy());
+        result.pushKV("timeoffset", batch[ID_NETWORKINFO]["result"]["timeoffset"].copy());
 
         UniValue connections(UniValue::VOBJ);
-        connections.pushKV("in", batch[ID_NETWORKINFO]["result"]["connections_in"]);
-        connections.pushKV("out", batch[ID_NETWORKINFO]["result"]["connections_out"]);
-        connections.pushKV("total", batch[ID_NETWORKINFO]["result"]["connections"]);
-        result.pushKV("connections", connections);
+        connections.pushKV("in", batch[ID_NETWORKINFO]["result"]["connections_in"].copy());
+        connections.pushKV("out", batch[ID_NETWORKINFO]["result"]["connections_out"].copy());
+        connections.pushKV("total", batch[ID_NETWORKINFO]["result"]["connections"].copy());
+        result.pushKV("connections", std::move(connections));
 
-        result.pushKV("proxy", batch[ID_NETWORKINFO]["result"]["networks"][0]["proxy"]);
-        result.pushKV("difficulty", batch[ID_BLOCKCHAININFO]["result"]["difficulty"]);
-        result.pushKV("chain", UniValue(batch[ID_BLOCKCHAININFO]["result"]["chain"]));
+        result.pushKV("proxy", batch[ID_NETWORKINFO]["result"]["networks"][0]["proxy"].copy());
+        result.pushKV("difficulty", batch[ID_BLOCKCHAININFO]["result"]["difficulty"].copy());
+        result.pushKV("chain", UniValue(batch[ID_BLOCKCHAININFO]["result"]["chain"].copy()));
         if (!batch[ID_WALLETINFO]["result"].isNull()) {
             result.pushKV("has_wallet", true);
-            result.pushKV("keypoolsize", batch[ID_WALLETINFO]["result"]["keypoolsize"]);
-            result.pushKV("walletname", batch[ID_WALLETINFO]["result"]["walletname"]);
+            result.pushKV("keypoolsize", batch[ID_WALLETINFO]["result"]["keypoolsize"].copy());
+            result.pushKV("walletname", batch[ID_WALLETINFO]["result"]["walletname"].copy());
             if (!batch[ID_WALLETINFO]["result"]["unlocked_until"].isNull()) {
-                result.pushKV("unlocked_until", batch[ID_WALLETINFO]["result"]["unlocked_until"]);
+                result.pushKV("unlocked_until", batch[ID_WALLETINFO]["result"]["unlocked_until"].copy());
             }
-            result.pushKV("paytxfee", batch[ID_WALLETINFO]["result"]["paytxfee"]);
+            result.pushKV("paytxfee", batch[ID_WALLETINFO]["result"]["paytxfee"].copy());
         }
         if (!batch[ID_BALANCES]["result"].isNull()) {
-            result.pushKV("balance", batch[ID_BALANCES]["result"]["mine"]["trusted"]);
+            result.pushKV("balance", batch[ID_BALANCES]["result"]["mine"]["trusted"].copy());
         }
-        result.pushKV("relayfee", batch[ID_NETWORKINFO]["result"]["relayfee"]);
-        result.pushKV("warnings", batch[ID_NETWORKINFO]["result"]["warnings"]);
+        result.pushKV("relayfee", batch[ID_NETWORKINFO]["result"]["relayfee"].copy());
+        result.pushKV("warnings", batch[ID_NETWORKINFO]["result"]["warnings"].copy());
         return JSONRPCReplyObj(result, NullUniValue, 1);
     }
 };
@@ -651,7 +651,7 @@ public:
     {
         UniValue result(UniValue::VOBJ);
         result.pushKV("address", address_str);
-        result.pushKV("blocks", reply.get_obj()["result"]);
+        result.pushKV("blocks", reply.get_obj()["result"].copy());
         return JSONRPCReplyObj(result, NullUniValue, 1);
     }
 protected:
@@ -877,11 +877,11 @@ static void GetWalletBalances(UniValue& result)
     UniValue balances(UniValue::VOBJ);
     for (const UniValue& wallet : wallets.getValues()) {
         const std::string wallet_name = wallet.get_str();
-        const UniValue getbalances = ConnectAndCallRPC(&rh, "getbalances", /* args=*/{}, wallet_name);
+        UniValue getbalances = ConnectAndCallRPC(&rh, "getbalances", /* args=*/{}, wallet_name);
         const UniValue& balance = find_value(getbalances, "result")["mine"]["trusted"];
-        balances.pushKV(wallet_name, balance);
+        balances.pushKV(wallet_name, balance.copy());
     }
-    result.pushKV("balances", balances);
+    result.pushKV("balances", std::move(balances));
 }
 
 /**

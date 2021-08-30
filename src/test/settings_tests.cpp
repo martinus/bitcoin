@@ -29,7 +29,7 @@ inline std::ostream& operator<<(std::ostream& os, const util::SettingsValue& val
 inline std::ostream& operator<<(std::ostream& os, const std::pair<std::string, util::SettingsValue>& kv)
 {
     util::SettingsValue out(util::SettingsValue::VOBJ);
-    out.__pushKV(kv.first, kv.second);
+    out.__pushKV(kv.first, kv.second.copy());
     os << out.write();
     return os;
 }
@@ -102,7 +102,7 @@ static void CheckValues(const util::Settings& settings, const std::string& singl
     util::SettingsValue single_value = GetSetting(settings, "section", "name", false, false);
     util::SettingsValue list_value(util::SettingsValue::VARR);
     for (const auto& item : GetSettingsList(settings, "section", "name", false)) {
-        list_value.push_back(item);
+        list_value.push_back(item.copy());
     }
     BOOST_CHECK_EQUAL(single_value.write().c_str(), single_val);
     BOOST_CHECK_EQUAL(list_value.write().c_str(), list_val);

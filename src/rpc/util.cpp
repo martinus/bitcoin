@@ -180,7 +180,7 @@ std::string HelpExampleRpcNamed(const std::string& methodname, const RPCArgList&
 {
     UniValue params(UniValue::VOBJ);
     for (const auto& param: args) {
-        params.pushKV(param.first, param.second);
+        params.pushKV(param.first, param.second.copy());
     }
 
     return "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\": \"curltest\", "
@@ -664,7 +664,7 @@ UniValue RPCHelpMan::GetArgMap() const
             map.push_back(arg_name);
             map.push_back(arg.m_type == RPCArg::Type::STR ||
                           arg.m_type == RPCArg::Type::STR_HEX);
-            arr.push_back(map);
+            arr.push_back(std::move(map));
         }
     }
     return arr;

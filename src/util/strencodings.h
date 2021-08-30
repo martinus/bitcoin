@@ -150,6 +150,11 @@ std::string HexStr(const Span<const uint8_t> s);
 inline std::string HexStr(const Span<const char> s) { return HexStr(MakeUCharSpan(s)); }
 
 /**
+ * Convert a span of bytes to a lower-case hexadecimal string and appends it to s 
+ */
+void AppendHexStr(const Span<const uint8_t> s, std::string& out);
+
+/**
  * Format a paragraph of text to a fixed width, adding spaces for
  * indentation to any added line.
  */

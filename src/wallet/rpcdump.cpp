@@ -1242,13 +1242,13 @@ static UniValue ProcessImport(CWallet& wallet, const UniValue& data, const int64
         result.pushKV("success", UniValue(true));
     } catch (const UniValue& e) {
         result.pushKV("success", UniValue(false));
-        result.pushKV("error", e);
+        result.pushKV("error", e.copy());
     } catch (...) {
         result.pushKV("success", UniValue(false));
 
         result.pushKV("error", JSONRPCError(RPC_MISC_ERROR, "Missing required fields"));
     }
-    if (warnings.size()) result.pushKV("warnings", warnings);
+    if (warnings.size()) result.pushKV("warnings", std::move(warnings));
     return result;
 }
 
@@ -1387,7 +1387,7 @@ RPCHelpMan importmulti()
         for (const UniValue& data : requests.getValues()) {
             const int64_t timestamp = std::max(GetImportTimestamp(data, now), minimumTimestamp);
             const UniValue result = ProcessImport(*pwallet, data, timestamp);
-            response.push_back(result);
+            response.push_back(result.copy());
 
             if (!fRescan) {
                 continue;
@@ -1425,7 +1425,7 @@ RPCHelpMan importmulti()
                 // the result stand unmodified. Otherwise replace the result
                 // with an error message.
                 if (scannedTime <= GetImportTimestamp(request, now) || results.at(i).exists("error")) {
-                    response.push_back(results.at(i));
+                    response.push_back(results.at(i).copy());
                 } else {
                     UniValue result = UniValue(UniValue::VOBJ);
                     result.pushKV("success", UniValue(false));
@@ -1599,9 +1599,9 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
         result.pushKV("success", UniValue(true));
     } catch (const UniValue& e) {
         result.pushKV("success", UniValue(false));
-        result.pushKV("error", e);
+        result.pushKV("error", e.copy());
     }
-    if (warnings.size()) result.pushKV("warnings", warnings);
+    if (warnings.size()) result.pushKV("warnings", std::move(warnings));
     return result;
 }
 
@@ -1690,7 +1690,7 @@ RPCHelpMan importdescriptors()
             // This throws an error if "timestamp" doesn't exist
             const int64_t timestamp = std::max(GetImportTimestamp(request, now), minimum_timestamp);
             const UniValue result = ProcessDescriptorImport(*pwallet, request, timestamp);
-            response.push_back(result);
+            response.push_back(result.copy());
 
             if (lowest_timestamp > timestamp ) {
                 lowest_timestamp = timestamp;
@@ -1730,7 +1730,7 @@ RPCHelpMan importdescriptors()
                 // the result stand unmodified. Otherwise replace the result
                 // with an error message.
                 if (scanned_time <= GetImportTimestamp(request, now) || results.at(i).exists("error")) {
-                    response.push_back(results.at(i));
+                    response.push_back(results.at(i).copy());
                 } else {
                     UniValue result = UniValue(UniValue::VOBJ);
                     result.pushKV("success", UniValue(false));
@@ -1829,15 +1829,15 @@ RPCHelpMan listdescriptors()
             UniValue range(UniValue::VARR);
             range.push_back(wallet_descriptor.range_start);
             range.push_back(wallet_descriptor.range_end - 1);
-            spk.pushKV("range", range);
+            spk.pushKV("range", std::move(range));
             spk.pushKV("next", wallet_descriptor.next_index);
         }
-        descriptors.push_back(spk);
+        descriptors.push_back(std::move(spk));
     }
 
     UniValue response(UniValue::VOBJ);
     response.pushKV("wallet_name", wallet->GetName());
-    response.pushKV("descriptors", descriptors);
+    response.pushKV("descriptors", std::move(descriptors));
 
     return response;
 },

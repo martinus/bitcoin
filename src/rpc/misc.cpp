@@ -68,15 +68,15 @@ static RPCHelpMan validateaddress()
     ret.pushKV("isvalid", isValid);
     if (isValid) {
         std::string currentAddress = EncodeDestination(dest);
-        ret.pushKV("address", currentAddress);
+        ret.pushKV("address", std::move(currentAddress));
 
         CScript scriptPubKey = GetScriptForDestination(dest);
         ret.pushKV("scriptPubKey", HexStr(scriptPubKey));
 
         UniValue detail = DescribeAddress(dest);
-        ret.pushKVs(detail);
+        ret.pushKVs(std::move(detail));
     } else {
-        ret.pushKV("error", error_msg);
+        ret.pushKV("error", std::move(error_msg));
     }
 
     return ret;
@@ -698,7 +698,7 @@ static UniValue SummaryToJSON(const IndexSummary&& summary, std::string index_na
     UniValue entry(UniValue::VOBJ);
     entry.pushKV("synced", summary.synced);
     entry.pushKV("best_block_height", summary.best_block_height);
-    ret_summary.pushKV(summary.name, entry);
+    ret_summary.pushKV(summary.name, std::move(entry));
     return ret_summary;
 }
 

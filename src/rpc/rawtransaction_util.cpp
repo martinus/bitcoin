@@ -94,7 +94,7 @@ CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniVal
             if (output.size() != 1) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, key-value pair must contain exactly one key");
             }
-            outputs_dict.pushKVs(output);
+            outputs_dict.pushKVs(output.copy());
         }
         outputs = std::move(outputs_dict);
     }
@@ -148,11 +148,11 @@ static void TxInErrorToJSON(const CTxIn& txin, UniValue& vErrorsRet, const std::
     for (unsigned int i = 0; i < txin.scriptWitness.stack.size(); i++) {
         witness.push_back(HexStr(txin.scriptWitness.stack[i]));
     }
-    entry.pushKV("witness", witness);
+    entry.pushKV("witness", std::move(witness));
     entry.pushKV("scriptSig", HexStr(txin.scriptSig));
     entry.pushKV("sequence", (uint64_t)txin.nSequence);
     entry.pushKV("error", strMessage);
-    vErrorsRet.push_back(entry);
+    vErrorsRet.push_back(std::move(entry));
 }
 
 void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keystore, std::map<COutPoint, Coin>& coins)
@@ -303,8 +303,8 @@ void SignTransactionResultToJSON(CMutableTransaction& mtx, bool complete, const 
     result.pushKV("complete", complete);
     if (!vErrors.empty()) {
         if (result.exists("errors")) {
-            vErrors.push_backV(result["errors"].getValues());
+            vErrors.push_backV(std::vector<UniValue>(result["errors"].getValues()));
         }
-        result.pushKV("errors", vErrors);
+        result.pushKV("errors", std::move(vErrors));
     }
 }

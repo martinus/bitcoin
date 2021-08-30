@@ -244,7 +244,7 @@ static RPCHelpMan getpeerinfo()
             for (const int height : statestats.vHeightInFlight) {
                 heights.push_back(height);
             }
-            obj.pushKV("inflight", heights);
+            obj.pushKV("inflight", std::move(heights));
             obj.pushKV("addr_relay_enabled", statestats.m_addr_relay_enabled);
             obj.pushKV("addr_processed", statestats.m_addr_processed);
             obj.pushKV("addr_rate_limited", statestats.m_addr_rate_limited);
@@ -253,7 +253,7 @@ static RPCHelpMan getpeerinfo()
         for (const auto& permission : NetPermissions::ToStrings(stats.m_permissionFlags)) {
             permissions.push_back(permission);
         }
-        obj.pushKV("permissions", permissions);
+        obj.pushKV("permissions", std::move(permissions));
         obj.pushKV("minfeefilter", ValueFromAmount(stats.minFeeFilter));
 
         UniValue sendPerMsgCmd(UniValue::VOBJ);
@@ -261,17 +261,17 @@ static RPCHelpMan getpeerinfo()
             if (i.second > 0)
                 sendPerMsgCmd.pushKV(i.first, i.second);
         }
-        obj.pushKV("bytessent_per_msg", sendPerMsgCmd);
+        obj.pushKV("bytessent_per_msg", std::move(sendPerMsgCmd));
 
         UniValue recvPerMsgCmd(UniValue::VOBJ);
         for (const auto& i : stats.mapRecvBytesPerMsgCmd) {
             if (i.second > 0)
                 recvPerMsgCmd.pushKV(i.first, i.second);
         }
-        obj.pushKV("bytesrecv_per_msg", recvPerMsgCmd);
+        obj.pushKV("bytesrecv_per_msg", std::move(recvPerMsgCmd));
         obj.pushKV("connection_type", ConnectionTypeAsString(stats.m_conn_type));
 
-        ret.push_back(obj);
+        ret.push_back(std::move(obj));
     }
 
     return ret;
@@ -500,10 +500,10 @@ static RPCHelpMan getaddednodeinfo()
             UniValue address(UniValue::VOBJ);
             address.pushKV("address", info.resolvedAddress.ToString());
             address.pushKV("connected", info.fInbound ? "inbound" : "outbound");
-            addresses.push_back(address);
+            addresses.push_back(std::move(address));
         }
-        obj.pushKV("addresses", addresses);
-        ret.push_back(obj);
+        obj.pushKV("addresses", std::move(addresses));
+        ret.push_back(std::move(obj));
     }
 
     return ret;
@@ -555,7 +555,7 @@ static RPCHelpMan getnettotals()
     outboundLimit.pushKV("serve_historical_blocks", !connman.OutboundTargetReached(true));
     outboundLimit.pushKV("bytes_left_in_cycle", connman.GetOutboundTargetBytesLeft());
     outboundLimit.pushKV("time_left_in_cycle", count_seconds(connman.GetMaxOutboundTimeLeftInCycle()));
-    obj.pushKV("uploadtarget", outboundLimit);
+    obj.pushKV("uploadtarget", std::move(outboundLimit));
     return obj;
 },
     };
@@ -575,7 +575,7 @@ static UniValue GetNetworksInfo()
         obj.pushKV("reachable", IsReachable(network));
         obj.pushKV("proxy", proxy.IsValid() ? proxy.proxy.ToStringIPPort() : std::string());
         obj.pushKV("proxy_randomize_credentials", proxy.randomize_credentials);
-        networks.push_back(obj);
+        networks.push_back(std::move(obj));
     }
     return networks;
 }
@@ -666,10 +666,10 @@ static RPCHelpMan getnetworkinfo()
             rec.pushKV("address", item.first.ToString());
             rec.pushKV("port", item.second.nPort);
             rec.pushKV("score", item.second.nScore);
-            localAddresses.push_back(rec);
+            localAddresses.push_back(std::move(rec));
         }
     }
-    obj.pushKV("localaddresses", localAddresses);
+    obj.pushKV("localaddresses", std::move(localAddresses));
     obj.pushKV("warnings",       GetWarnings(false).original);
     return obj;
 },
@@ -802,7 +802,7 @@ static RPCHelpMan listbanned()
         rec.pushKV("ban_duration", (banEntry.nBanUntil - banEntry.nCreateTime));
         rec.pushKV("time_remaining", (banEntry.nBanUntil - current_time));
 
-        bannedAddresses.push_back(rec);
+        bannedAddresses.push_back(std::move(rec));
     }
 
     return bannedAddresses;
@@ -907,7 +907,7 @@ static RPCHelpMan getnodeaddresses()
         obj.pushKV("address", addr.ToStringIP());
         obj.pushKV("port", addr.GetPort());
         obj.pushKV("network", GetNetworkName(addr.GetNetClass()));
-        ret.push_back(obj);
+        ret.push_back(std::move(obj));
     }
     return ret;
 },

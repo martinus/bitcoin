@@ -169,7 +169,7 @@ static void WalletTxToJSON(interfaces::Chain& chain, const CWalletTx& wtx, UniVa
     UniValue conflicts(UniValue::VARR);
     for (const uint256& conflict : wtx.GetConflicts())
         conflicts.push_back(conflict.GetHex());
-    entry.pushKV("walletconflicts", conflicts);
+    entry.pushKV("walletconflicts", std::move(conflicts));
     entry.pushKV("time", wtx.GetTxTime());
     entry.pushKV("timereceived", (int64_t)wtx.nTimeReceived);
 
@@ -524,7 +524,7 @@ static RPCHelpMan sendtoaddress()
 
     UniValue address_amounts(UniValue::VOBJ);
     const std::string address = request.params[0].get_str();
-    address_amounts.pushKV(address, request.params[1]);
+    address_amounts.pushKV(address, request.params[1].copy());
     UniValue subtractFeeFromAmount(UniValue::VARR);
     if (fSubtractFeeFromAmount) {
         subtractFeeFromAmount.push_back(address);
@@ -590,9 +590,9 @@ static RPCHelpMan listaddressgroupings()
                     addressInfo.push_back(address_book_entry->GetLabel());
                 }
             }
-            jsonGrouping.push_back(addressInfo);
+            jsonGrouping.push_back(std::move(addressInfo));
         }
-        jsonGroupings.push_back(jsonGrouping);
+        jsonGroupings.push_back(std::move(jsonGrouping));
     }
     return jsonGroupings;
 },
@@ -1171,8 +1171,8 @@ static UniValue ListReceived(const CWallet& wallet, const UniValue& params, bool
                     transactions.push_back(_item.GetHex());
                 }
             }
-            obj.pushKV("txids", transactions);
-            ret.push_back(obj);
+            obj.pushKV("txids", std::move(transactions));
+            ret.push_back(std::move(obj));
         }
     }
 
@@ -1188,7 +1188,7 @@ static UniValue ListReceived(const CWallet& wallet, const UniValue& params, bool
             obj.pushKV("amount",        ValueFromAmount(nAmount));
             obj.pushKV("confirmations", (nConf == std::numeric_limits<int>::max() ? 0 : nConf));
             obj.pushKV("label",         entry.first);
-            ret.push_back(obj);
+            ret.push_back(std::move(obj));
         }
     }
 
@@ -1335,7 +1335,7 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
             if (fLong)
                 WalletTxToJSON(wallet.chain(), wtx, entry);
             entry.pushKV("abandoned", wtx.isAbandoned());
-            ret.push_back(entry);
+            ret.push_back(std::move(entry));
         }
     }
 
@@ -1376,7 +1376,7 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
             entry.pushKV("vout", r.vout);
             if (fLong)
                 WalletTxToJSON(wallet.chain(), wtx, entry);
-            ret.push_back(entry);
+            ret.push_back(std::move(entry));
         }
     }
 }
@@ -1645,8 +1645,8 @@ static RPCHelpMan listsinceblock()
     CHECK_NONFATAL(wallet.chain().findAncestorByHeight(wallet.GetLastBlockHash(), wallet.GetLastBlockHeight() + 1 - target_confirms, FoundBlock().hash(lastblock)));
 
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("transactions", transactions);
-    if (include_removed) ret.pushKV("removed", removed);
+    ret.pushKV("transactions", std::move(transactions));
+    if (include_removed) ret.pushKV("removed", std::move(removed));
     ret.pushKV("lastblock", lastblock.GetHex());
 
     return ret;
@@ -1749,7 +1749,7 @@ static RPCHelpMan gettransaction()
 
     UniValue details(UniValue::VARR);
     ListTransactions(*pwallet, wtx, 0, false, details, filter, nullptr /* filter_label */);
-    entry.pushKV("details", details);
+    entry.pushKV("details", std::move(details));
 
     std::string strHex = EncodeHexTx(*wtx.tx, pwallet->chain().rpcSerializationFlags());
     entry.pushKV("hex", strHex);
@@ -1757,7 +1757,7 @@ static RPCHelpMan gettransaction()
     if (verbose) {
         UniValue decoded(UniValue::VOBJ);
         TxToUniv(*wtx.tx, uint256(), pwallet->chain().rpcEnableDeprecated("addresses"), decoded, false);
-        entry.pushKV("decoded", decoded);
+        entry.pushKV("decoded", std::move(decoded));
     }
 
     return entry;
@@ -2296,7 +2296,7 @@ static RPCHelpMan listlockunspent()
 
         o.pushKV("txid", outpt.hash.GetHex());
         o.pushKV("vout", (int)outpt.n);
-        ret.push_back(o);
+        ret.push_back(std::move(o));
     }
 
     return ret;
@@ -2397,7 +2397,7 @@ static RPCHelpMan getbalances()
             const auto full_bal = wallet.GetBalance(0, false);
             balances_mine.pushKV("used", ValueFromAmount(full_bal.m_mine_trusted + full_bal.m_mine_untrusted_pending - bal.m_mine_trusted - bal.m_mine_untrusted_pending));
         }
-        balances.pushKV("mine", balances_mine);
+        balances.pushKV("mine", std::move(balances_mine));
     }
     auto spk_man = wallet.GetLegacyScriptPubKeyMan();
     if (spk_man && spk_man->HaveWatchOnly()) {
@@ -2405,7 +2405,7 @@ static RPCHelpMan getbalances()
         balances_watchonly.pushKV("trusted", ValueFromAmount(bal.m_watchonly_trusted));
         balances_watchonly.pushKV("untrusted_pending", ValueFromAmount(bal.m_watchonly_untrusted_pending));
         balances_watchonly.pushKV("immature", ValueFromAmount(bal.m_watchonly_immature));
-        balances.pushKV("watchonly", balances_watchonly);
+        balances.pushKV("watchonly", std::move(balances_watchonly));
     }
     return balances;
 },
@@ -2497,7 +2497,7 @@ static RPCHelpMan getwalletinfo()
         UniValue scanning(UniValue::VOBJ);
         scanning.pushKV("duration", pwallet->ScanningDuration() / 1000);
         scanning.pushKV("progress", pwallet->ScanningProgress());
-        obj.pushKV("scanning", scanning);
+        obj.pushKV("scanning", std::move(scanning));
     } else {
         obj.pushKV("scanning", false);
     }
@@ -2534,11 +2534,11 @@ static RPCHelpMan listwalletdir()
     for (const auto& path : ListDatabases(GetWalletDir())) {
         UniValue wallet(UniValue::VOBJ);
         wallet.pushKV("name", path.string());
-        wallets.push_back(wallet);
+        wallets.push_back(std::move(wallet));
     }
 
     UniValue result(UniValue::VOBJ);
-    result.pushKV("wallets", wallets);
+    result.pushKV("wallets", std::move(wallets));
     return result;
 },
     };
@@ -3134,7 +3134,7 @@ static RPCHelpMan listunspent()
         }
         if (avoid_reuse) entry.pushKV("reused", reused);
         entry.pushKV("safe", out.fSafe);
-        results.push_back(entry);
+        results.push_back(std::move(entry));
     }
 
     return results;
@@ -3643,7 +3643,7 @@ static RPCHelpMan bumpfee_helper(std::string method_name)
     for (const bilingual_str& error : errors) {
         result_errors.push_back(error.original);
     }
-    result.pushKV("errors", result_errors);
+    result.pushKV("errors", std::move(result_errors));
 
     return result;
 },
@@ -3751,13 +3751,13 @@ public:
             // Only when the script corresponds to an address.
             UniValue subobj(UniValue::VOBJ);
             UniValue detail = DescribeAddress(embedded);
-            subobj.pushKVs(detail);
+            subobj.pushKVs(std::move(detail));
             UniValue wallet_detail = std::visit(*this, embedded);
-            subobj.pushKVs(wallet_detail);
+            subobj.pushKVs(std::move(wallet_detail));
             subobj.pushKV("address", EncodeDestination(embedded));
             subobj.pushKV("scriptPubKey", HexStr(subscript));
             // Always report the pubkey at the top level, so that `getnewaddress()['pubkey']` always works.
-            if (subobj.exists("pubkey")) obj.pushKV("pubkey", subobj["pubkey"]);
+            if (subobj.exists("pubkey")) obj.pushKV("pubkey", subobj["pubkey"].copy());
             obj.pushKV("embedded", std::move(subobj));
         } else if (which_type == TxoutType::MULTISIG) {
             // Also report some information on multisig scripts (which do not have a corresponding address).
@@ -3833,7 +3833,7 @@ static UniValue DescribeWalletAddress(const CWallet& wallet, const CTxDestinatio
     CScript script = GetScriptForDestination(dest);
     std::unique_ptr<SigningProvider> provider = nullptr;
     provider = wallet.GetSolvingProvider(script);
-    ret.pushKVs(detail);
+    ret.pushKVs(std::move(detail));
     ret.pushKVs(std::visit(DescribeWalletAddressVisitor(provider.get()), dest));
     return ret;
 }
@@ -3957,7 +3957,7 @@ RPCHelpMan getaddressinfo()
     ret.pushKV("iswatchonly", bool(mine & ISMINE_WATCH_ONLY));
 
     UniValue detail = DescribeWalletAddress(*pwallet, dest);
-    ret.pushKVs(detail);
+    ret.pushKVs(std::move(detail));
 
     ret.pushKV("ischange", pwallet->IsChange(scriptPubKey));
 
@@ -4209,15 +4209,15 @@ static RPCHelpMan send()
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "Pass conf_target and estimate_mode either as arguments or in the options object, but not both");
                 }
             } else {
-                options.pushKV("conf_target", request.params[1]);
-                options.pushKV("estimate_mode", request.params[2]);
+                options.pushKV("conf_target", request.params[1].copy());
+                options.pushKV("estimate_mode", request.params[2].copy());
             }
             if (options.exists("fee_rate")) {
                 if (!request.params[3].isNull()) {
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "Pass the fee_rate either as an argument, or in the options object, but not both");
                 }
             } else {
-                options.pushKV("fee_rate", request.params[3]);
+                options.pushKV("fee_rate", request.params[3].copy());
             }
             if (!options["conf_target"].isNull() && (options["estimate_mode"].isNull() || (options["estimate_mode"].get_str() == "unset"))) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "Specify estimate_mode");

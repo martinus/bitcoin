@@ -591,16 +591,24 @@ std::string Capitalize(std::string str)
     return str;
 }
 
-std::string HexStr(const Span<const uint8_t> s)
+void AppendHexStr(const Span<const uint8_t> s, std::string& out)
 {
-    std::string rv(s.size() * 2, '\0');
     static constexpr char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                          '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-    auto it = rv.begin();
+
+    size_t old_size = out.size();
+    out.resize(old_size + s.size() * 2);
+    auto it = out.begin() + old_size;
     for (uint8_t v : s) {
         *it++ = hexmap[v >> 4];
         *it++ = hexmap[v & 15];
     }
-    assert(it == rv.end());
+    assert(it == out.end());
+}
+
+std::string HexStr(const Span<const uint8_t> s)
+{
+    std::string rv;
+    AppendHexStr(s, rv);
     return rv;
 }

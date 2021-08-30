@@ -217,14 +217,14 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
             const CTxUndo* txundo = (have_undo && i) ? &blockUndo.vtxundo.at(i - 1) : nullptr;
             UniValue objTx(UniValue::VOBJ);
             TxToUniv(*tx, uint256(), objTx, true, RPCSerializationFlags(), txundo);
-            txs.push_back(objTx);
+            txs.push_back(std::move(objTx));
         }
     } else {
         for (const CTransactionRef& tx : block.vtx) {
             txs.push_back(tx->GetHash().GetHex());
         }
     }
-    result.pushKV("tx", txs);
+    result.pushKV("tx", std::move(txs));
 
     return result;
 }
@@ -490,7 +490,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
     fees.pushKV("modified", ValueFromAmount(e.GetModifiedFee()));
     fees.pushKV("ancestor", ValueFromAmount(e.GetModFeesWithAncestors()));
     fees.pushKV("descendant", ValueFromAmount(e.GetModFeesWithDescendants()));
-    info.pushKV("fees", fees);
+    info.pushKV("fees", std::move(fees));
 
     info.pushKV("vsize", (int)e.GetTxSize());
     info.pushKV("weight", (int)e.GetTxWeight());
@@ -519,7 +519,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
         depends.push_back(dep);
     }
 
-    info.pushKV("depends", depends);
+    info.pushKV("depends", std::move(depends));
 
     UniValue spent(UniValue::VARR);
     const CTxMemPool::txiter& it = pool.mapTx.find(tx.GetHash());
@@ -528,7 +528,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
         spent.push_back(child.GetTx().GetHash().ToString());
     }
 
-    info.pushKV("spentby", spent);
+    info.pushKV("spentby", std::move(spent));
 
     // Add opt-in RBF status
     bool rbfStatus = false;
@@ -558,7 +558,7 @@ UniValue MempoolToJSON(const CTxMemPool& pool, bool verbose, bool include_mempoo
             // Mempool has unique entries so there is no advantage in using
             // UniValue::pushKV, which checks if the key already exists in O(N).
             // UniValue::__pushKV is used instead which currently is O(1).
-            o.__pushKV(hash.ToString(), info);
+            o.__pushKV(hash.ToString(), std::move(info));
         }
         return o;
     } else {
@@ -577,7 +577,7 @@ UniValue MempoolToJSON(const CTxMemPool& pool, bool verbose, bool include_mempoo
             return a;
         } else {
             UniValue o(UniValue::VOBJ);
-            o.pushKV("txids", a);
+            o.pushKV("txids", std::move(a));
             o.pushKV("mempool_sequence", mempool_sequence);
             return o;
         }
@@ -690,7 +690,7 @@ static RPCHelpMan getmempoolancestors()
             const uint256& _hash = e.GetTx().GetHash();
             UniValue info(UniValue::VOBJ);
             entryToJSON(mempool, info, e);
-            o.pushKV(_hash.ToString(), info);
+            o.pushKV(_hash.ToString(), std::move(info));
         }
         return o;
     }
@@ -755,7 +755,7 @@ static RPCHelpMan getmempooldescendants()
             const uint256& _hash = e.GetTx().GetHash();
             UniValue info(UniValue::VOBJ);
             entryToJSON(mempool, info, e);
-            o.pushKV(_hash.ToString(), info);
+            o.pushKV(_hash.ToString(), std::move(info));
         }
         return o;
     }
@@ -1226,9 +1226,9 @@ static RPCHelpMan gettxoutsetinfo()
             unspendables.pushKV("bip30", ValueFromAmount(stats.total_unspendables_bip30 - prev_stats.total_unspendables_bip30));
             unspendables.pushKV("scripts", ValueFromAmount(stats.total_unspendables_scripts - prev_stats.total_unspendables_scripts));
             unspendables.pushKV("unclaimed_rewards", ValueFromAmount(stats.total_unspendables_unclaimed_rewards - prev_stats.total_unspendables_unclaimed_rewards));
-            block_info.pushKV("unspendables", unspendables);
+            block_info.pushKV("unspendables", std::move(unspendables));
 
-            ret.pushKV("block_info", block_info);
+            ret.pushKV("block_info", std::move(block_info));
         }
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
@@ -1315,7 +1315,7 @@ static RPCHelpMan gettxout()
     ret.pushKV("value", ValueFromAmount(coin.out.nValue));
     UniValue o(UniValue::VOBJ);
     ScriptPubKeyToUniv(coin.out.scriptPubKey, o, true);
-    ret.pushKV("scriptPubKey", o);
+    ret.pushKV("scriptPubKey", std::move(o));
     ret.pushKV("coinbase", (bool)coin.fCoinBase);
 
     return ret;
@@ -1365,7 +1365,7 @@ static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, UniValue& 
     // one below the activation height
     rv.pushKV("active", DeploymentActiveAfter(active_chain_tip, params, dep));
     rv.pushKV("height", params.DeploymentHeight(dep));
-    softforks.pushKV(DeploymentName(dep), rv);
+    softforks.pushKV(DeploymentName(dep), std::move(rv));
 }
 
 static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, UniValue& softforks, const Consensus::Params& consensusParams, Consensus::DeploymentPos id)
@@ -1401,19 +1401,19 @@ static void SoftForkDescPushBack(const CBlockIndex* active_chain_tip, UniValue& 
             statsUV.pushKV("threshold", statsStruct.threshold);
             statsUV.pushKV("possible", statsStruct.possible);
         }
-        bip9.pushKV("statistics", statsUV);
+        bip9.pushKV("statistics", std::move(statsUV));
     }
     bip9.pushKV("min_activation_height", consensusParams.vDeployments[id].min_activation_height);
 
     UniValue rv(UniValue::VOBJ);
     rv.pushKV("type", "bip9");
-    rv.pushKV("bip9", bip9);
+    rv.pushKV("bip9", std::move(bip9));
     if (ThresholdState::ACTIVE == thresholdState) {
         rv.pushKV("height", since_height);
     }
     rv.pushKV("active", ThresholdState::ACTIVE == thresholdState);
 
-    softforks.pushKV(DeploymentName(id), rv);
+    softforks.pushKV(DeploymentName(id), std::move(rv));
 }
 
 RPCHelpMan getblockchaininfo()
@@ -1519,7 +1519,7 @@ RPCHelpMan getblockchaininfo()
     SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_SEGWIT);
     SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_TESTDUMMY);
     SoftForkDescPushBack(tip, softforks, consensusParams, Consensus::DEPLOYMENT_TAPROOT);
-    obj.pushKV("softforks", softforks);
+    obj.pushKV("softforks", std::move(softforks));
 
     obj.pushKV("warnings", GetWarnings(false).original);
     return obj;
@@ -1630,9 +1630,9 @@ static RPCHelpMan getchaintips()
             // No clue.
             status = "unknown";
         }
-        obj.pushKV("status", status);
+        obj.pushKV("status", std::move(status));
 
-        res.push_back(obj);
+        res.push_back(std::move(obj));
     }
 
     return res;
@@ -2150,7 +2150,7 @@ static RPCHelpMan getblockstats()
     ret_all.pushKV("avgfeerate", total_weight ? (totalfee * WITNESS_SCALE_FACTOR) / total_weight : 0); // Unit: sat/vbyte
     ret_all.pushKV("avgtxsize", (block.vtx.size() > 1) ? total_size / (block.vtx.size() - 1) : 0);
     ret_all.pushKV("blockhash", pindex->GetBlockHash().GetHex());
-    ret_all.pushKV("feerate_percentiles", feerates_res);
+    ret_all.pushKV("feerate_percentiles", std::move(feerates_res));
     ret_all.pushKV("height", (int64_t)pindex->nHeight);
     ret_all.pushKV("ins", inputs);
     ret_all.pushKV("maxfee", maxfee);
@@ -2186,7 +2186,7 @@ static RPCHelpMan getblockstats()
         if (value.isNull()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid selected statistic %s", stat));
         }
-        ret.pushKV(stat, value);
+        ret.pushKV(stat, value.copy());
     }
     return ret;
 },
@@ -2428,9 +2428,9 @@ static RPCHelpMan scantxoutset()
             unspent.pushKV("amount", ValueFromAmount(txo.nValue));
             unspent.pushKV("height", (int32_t)coin.nHeight);
 
-            unspents.push_back(unspent);
+            unspents.push_back(std::move(unspent));
         }
-        result.pushKV("unspents", unspents);
+        result.pushKV("unspents", std::move(unspents));
         result.pushKV("total_amount", ValueFromAmount(total_in));
     } else {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid command");

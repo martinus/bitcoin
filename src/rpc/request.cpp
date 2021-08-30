@@ -25,8 +25,8 @@ UniValue JSONRPCRequestObj(const std::string& strMethod, const UniValue& params,
 {
     UniValue request(UniValue::VOBJ);
     request.pushKV("method", strMethod);
-    request.pushKV("params", params);
-    request.pushKV("id", id);
+    request.pushKV("params", UniValue{params});
+    request.pushKV("id", UniValue{id});
     return request;
 }
 
@@ -34,11 +34,11 @@ UniValue JSONRPCReplyObj(const UniValue& result, const UniValue& error, const Un
 {
     UniValue reply(UniValue::VOBJ);
     if (!error.isNull())
-        reply.pushKV("result", NullUniValue);
+        reply.pushKV("result", UniValue{NullUniValue});
     else
-        reply.pushKV("result", result);
-    reply.pushKV("error", error);
-    reply.pushKV("id", id);
+        reply.pushKV("result", UniValue{result});
+    reply.pushKV("error", UniValue{error});
+    reply.pushKV("id", UniValue{id});
     return reply;
 }
 
