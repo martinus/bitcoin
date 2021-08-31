@@ -6,11 +6,34 @@
 #include <stdint.h>
 #include <iomanip>
 #include <sstream>
+#include <algorithm>
 #include <stdlib.h>
 
 #include "univalue.h"
 
 const UniValue NullUniValue;
+
+namespace {
+
+/**
+ * Performs locale-independend to_string of n and appends it to str.
+ */
+template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+void AppendToString(T n, std::string& str) {
+    auto unsigned_n = static_cast<std::make_unsigned_t<T>>(n);
+    if (n < 0) {
+        str += '-';
+        unsigned_n = 0 - unsigned_n;
+    }
+    auto old_size = str.size();
+    do {
+        str += '0' + (unsigned_n % 10);
+        unsigned_n /= 10;
+    } while (unsigned_n);
+    std::reverse(str.begin() + old_size, str.end());
+}
+
+}
 
 void UniValue::clear()
 {
@@ -69,7 +92,7 @@ bool UniValue::setInt(uint64_t val_)
 {
     clear();
     typ = VNUM;
-    val = std::to_string(val_);
+    AppendToString(val_, val);
     return true;
 }
 
@@ -77,7 +100,7 @@ bool UniValue::setInt(int64_t val_)
 {
     clear();
     typ = VNUM;
-    val = std::to_string(val_);
+    AppendToString(val_, val);
     return true;
 }
 
