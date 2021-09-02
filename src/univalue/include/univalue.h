@@ -1,12 +1,24 @@
 // Copyright 2014 BitPay Inc.
-// Copyright 2015 Bitcoin Core Developers
+// Copyright 2015-2021 Bitcoin Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or https://opensource.org/licenses/mit-license.php.
 
 #ifndef __UNIVALUE_H__
 #define __UNIVALUE_H__
 
-#define DISABLE_UNIVALUE_COPY_OPERATIONS
+// Legacy code that uses UniValue typically makes countless copies of UniValue
+// objects. These copies are often unnecessary and costly. To help with
+// converting legacy code into more efficient std::move friendly code, enable
+// NO_UNIVALUE_COPY_OPERATIONS. This will disable all UniValue methods that
+// cause copying of elements, causing compile errors. Each of these compile
+// errors can then be fixed with e.g. std::move(), or if a copy is still
+// necessary by explicitly calling the .copy() method. Unfortunately it cannot
+// detect all cases, as a copy constructor is still necessary for collections.
+//
+// You can disable copy operations here globally, or in individual files by
+// setting it before the first univalue.h include.
+//
+//#define NO_UNIVALUE_COPY_OPERATIONS
 
 #include <stdint.h>
 #include <string.h>
@@ -22,9 +34,22 @@ public:
 
     UniValue() = default;
 
-    // add an explicit copy() operation that also works even when DISABLE_UNIVALUE_COPY_OPERATIONS is defined.
+#if defined(NO_UNIVALUE_COPY_OPERATIONS)
+    // explicit copy constructor and deleted copy assignment forces the use of .copy() in most cases.
+    explicit UniValue(const UniValue&) = default;
+    UniValue& operator=(const UniValue&) = delete;
+#else
+    UniValue(const UniValue&) = default;
+    UniValue& operator=(const UniValue&) = default;
+#endif
+
+    UniValue(UniValue&&) = default;
+    UniValue& operator=(UniValue&&) = default;
+    ~UniValue() = default;
+
+    // adds an explicit copy() operation that also works even when NO_UNIVALUE_COPY_OPERATIONS is defined.
     UniValue copy() const {
-        return *this;
+        return UniValue{*this};
     }
 
     UniValue(UniValue::VType initialType) : typ(initialType) {}
@@ -92,7 +117,7 @@ public:
     bool isArray() const { return (typ == VARR); }
     bool isObject() const { return (typ == VOBJ); }
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
     bool push_back(const UniValue& val);
 #endif
     bool push_back(UniValue&& val);
@@ -120,25 +145,25 @@ public:
     bool push_back(double val_) {
         return push_back(UniValue(val_));
     }
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
     bool push_backV(const std::vector<UniValue>& vec);
 #endif
     bool push_backV(std::vector<UniValue>&& vec);
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
     void __pushKV(const std::string& key, const UniValue& val);
 #endif
     void __pushKV(const std::string& key, UniValue&& val);
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
     void __pushKV(std::string&& key, const UniValue& val);
 #endif
     void __pushKV(std::string&& key, UniValue&& val);
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
     bool pushKV(const std::string& key, const UniValue& val);
 #endif
     bool pushKV(const std::string& key, UniValue&& val);
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
     bool pushKV(std::string&& key, const UniValue& val);
 #endif
     bool pushKV(std::string&& key, UniValue&& val);
@@ -191,7 +216,7 @@ public:
     bool pushKV(std::string&& key, double val_) {
         return pushKV(std::move(key), UniValue(val_));
     }    
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
     bool pushKVs(const UniValue& obj);
 #endif
     bool pushKVs(UniValue&& obj);
