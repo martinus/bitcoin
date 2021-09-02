@@ -6,6 +6,8 @@
 #ifndef __UNIVALUE_H__
 #define __UNIVALUE_H__
 
+#define DISABLE_UNIVALUE_COPY_OPERATIONS
+
 #include <stdint.h>
 #include <string.h>
 
@@ -16,13 +18,15 @@
 
 class UniValue {
 public:
-    UniValue copy() const {
-        return *this;
-    }
-    
     enum VType { VNULL, VOBJ, VARR, VSTR, VNUM, VBOOL, };
 
     UniValue() = default;
+
+    // add an explicit copy() operation that also works even when DISABLE_UNIVALUE_COPY_OPERATIONS is defined.
+    UniValue copy() const {
+        return *this;
+    }
+
     UniValue(UniValue::VType initialType) : typ(initialType) {}
     UniValue(UniValue::VType initialType, const std::string& initialStr) :typ(initialType), val(initialStr) {}
     UniValue(UniValue::VType initialType, std::string&& initialStr) : typ(initialType), val(std::move(initialStr)) {}
@@ -88,7 +92,9 @@ public:
     bool isArray() const { return (typ == VARR); }
     bool isObject() const { return (typ == VOBJ); }
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
     bool push_back(const UniValue& val);
+#endif
     bool push_back(UniValue&& val);
     bool push_back(const std::string& val_) {
         return push_back(UniValue(VSTR, val_));
@@ -114,17 +120,27 @@ public:
     bool push_back(double val_) {
         return push_back(UniValue(val_));
     }
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
     bool push_backV(const std::vector<UniValue>& vec);
+#endif
     bool push_backV(std::vector<UniValue>&& vec);
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
     void __pushKV(const std::string& key, const UniValue& val);
+#endif
     void __pushKV(const std::string& key, UniValue&& val);
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
     void __pushKV(std::string&& key, const UniValue& val);
+#endif
     void __pushKV(std::string&& key, UniValue&& val);
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
     bool pushKV(const std::string& key, const UniValue& val);
+#endif
     bool pushKV(const std::string& key, UniValue&& val);
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
     bool pushKV(std::string&& key, const UniValue& val);
+#endif
     bool pushKV(std::string&& key, UniValue&& val);
     
     bool pushKV(const std::string& key, const std::string& val_) {
@@ -175,7 +191,9 @@ public:
     bool pushKV(std::string&& key, double val_) {
         return pushKV(std::move(key), UniValue(val_));
     }    
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
     bool pushKVs(const UniValue& obj);
+#endif
     bool pushKVs(UniValue&& obj);
 
     std::string write(unsigned int prettyIndent = 0,

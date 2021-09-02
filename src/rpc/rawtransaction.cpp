@@ -245,7 +245,7 @@ static RPCHelpMan gettxoutproof()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::set<uint256> setTxids;
-    UniValue txids = request.params[0].get_array();
+    UniValue const& txids = request.params[0].get_array();
     if (txids.empty()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Parameter 'txids' cannot be empty");
     }
@@ -594,7 +594,7 @@ static RPCHelpMan decodescript()
     ScriptPubKeyToUniv(script, r, /* fIncludeHex */ false);
 
     UniValue type;
-    type = find_value(r, "type");
+    type = find_value(r, "type").copy();
 
     if (type.isStr() && type.get_str() != "scripthash") {
         // P2SH cannot be wrapped in a P2SH. If this script is already a P2SH,
@@ -658,7 +658,7 @@ static RPCHelpMan combinerawtransaction()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
 
-    UniValue txs = request.params[0].get_array();
+    UniValue const& txs = request.params[0].get_array();
     std::vector<CMutableTransaction> txVariants(txs.size());
 
     for (unsigned int idx = 0; idx < txs.size(); idx++) {
@@ -795,7 +795,7 @@ static RPCHelpMan signrawtransactionwithkey()
     FillableSigningProvider keystore;
     const UniValue& keys = request.params[1].get_array();
     for (unsigned int idx = 0; idx < keys.size(); ++idx) {
-        UniValue k = keys[idx];
+        UniValue const& k = keys[idx];
         CKey key = DecodeSecret(k.get_str());
         if (!key.IsValid()) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
@@ -937,7 +937,7 @@ static RPCHelpMan testmempoolaccept()
         UniValue::VARR,
         UniValueType(), // VNUM or VSTR, checked inside AmountFromValue()
     });
-    const UniValue raw_transactions = request.params[0].get_array();
+    const UniValue& raw_transactions = request.params[0].get_array();
     if (raw_transactions.size() < 1 || raw_transactions.size() > MAX_PACKAGE_COUNT) {
         throw JSONRPCError(RPC_INVALID_PARAMETER,
                            "Array must contain between 1 and " + ToString(MAX_PACKAGE_COUNT) + " transactions.");
@@ -1357,7 +1357,7 @@ static RPCHelpMan combinepsbt()
 
     // Unserialize the transactions
     std::vector<PartiallySignedTransaction> psbtxs;
-    UniValue txs = request.params[0].get_array();
+    UniValue const& txs = request.params[0].get_array();
     if (txs.empty()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Parameter 'txs' cannot be empty");
     }
@@ -1625,7 +1625,7 @@ static RPCHelpMan utxoupdatepsbt()
     // Parse descriptors, if any.
     FlatSigningProvider provider;
     if (!request.params[1].isNull()) {
-        auto descs = request.params[1].get_array();
+        auto const& descs = request.params[1].get_array();
         for (size_t i = 0; i < descs.size(); ++i) {
             EvalDescriptorStringOrObject(descs[i], provider);
         }
@@ -1708,7 +1708,7 @@ static RPCHelpMan joinpsbts()
 
     // Unserialize the transactions
     std::vector<PartiallySignedTransaction> psbtxs;
-    UniValue txs = request.params[0].get_array();
+    UniValue const& txs = request.params[0].get_array();
 
     if (txs.size() <= 1) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "At least two PSBTs are required to join PSBTs.");

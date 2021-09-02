@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <algorithm>
+#include <type_traits>
 #include <stdlib.h>
 
 #include "univalue.h"
@@ -16,18 +17,20 @@ const UniValue NullUniValue;
 namespace {
 
 /**
- * Performs locale-independend to_string of n and appends it to str.
+ * Performs locale-independend to string conversion of integral numbers.
+ * 
+ * This is much faster than using a temporary stringstream.
  */
-template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-void AppendToString(T n, std::string& str) {
+template<typename T>
+void appendNumToString(T n, std::string& str) {
     auto unsigned_n = static_cast<std::make_unsigned_t<T>>(n);
     if (n < 0) {
-        str += '-';
+        str.push_back('-');
         unsigned_n = 0 - unsigned_n;
     }
     auto old_size = str.size();
     do {
-        str += '0' + (unsigned_n % 10);
+        str.push_back(static_cast<char>('0' + (unsigned_n % 10)));
         unsigned_n /= 10;
     } while (unsigned_n);
     std::reverse(str.begin() + old_size, str.end());
@@ -92,7 +95,7 @@ bool UniValue::setInt(uint64_t val_)
 {
     clear();
     typ = VNUM;
-    AppendToString(val_, val);
+    appendNumToString(val_, val);
     return true;
 }
 
@@ -100,7 +103,7 @@ bool UniValue::setInt(int64_t val_)
 {
     clear();
     typ = VNUM;
-    AppendToString(val_, val);
+    appendNumToString(val_, val);
     return true;
 }
 
@@ -145,6 +148,7 @@ bool UniValue::setObject()
     return true;
 }
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::push_back(const UniValue& val_)
 {
     if (typ != VARR)
@@ -153,6 +157,7 @@ bool UniValue::push_back(const UniValue& val_)
     values.push_back(val_);
     return true;
 }
+#endif
 
 bool UniValue::push_back(UniValue&& val_)
 {
@@ -163,6 +168,7 @@ bool UniValue::push_back(UniValue&& val_)
     return true;
 }
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::push_backV(const std::vector<UniValue>& vec)
 {
     if (typ != VARR)
@@ -172,6 +178,7 @@ bool UniValue::push_backV(const std::vector<UniValue>& vec)
 
     return true;
 }
+#endif
 
 bool UniValue::push_backV(std::vector<UniValue>&& vec)
 {
@@ -183,11 +190,13 @@ bool UniValue::push_backV(std::vector<UniValue>&& vec)
     return true;
 }
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
 void UniValue::__pushKV(const std::string& key, const UniValue& val_)
 {
     keys.push_back(key);
     values.push_back(val_);
 }
+#endif
 
 void UniValue::__pushKV(const std::string& key, UniValue&& val_)
 {
@@ -195,11 +204,13 @@ void UniValue::__pushKV(const std::string& key, UniValue&& val_)
     values.push_back(std::move(val_));
 }
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
 void UniValue::__pushKV(std::string&& key, const UniValue& val_)
 {
     keys.push_back(std::move(key));
     values.push_back(val_);
 }
+#endif
 
 void UniValue::__pushKV(std::string&& key, UniValue&& val_)
 {
@@ -207,6 +218,7 @@ void UniValue::__pushKV(std::string&& key, UniValue&& val_)
     values.push_back(std::move(val_));
 }
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::pushKV(const std::string& key, const UniValue& val_)
 {
     if (typ != VOBJ)
@@ -219,6 +231,7 @@ bool UniValue::pushKV(const std::string& key, const UniValue& val_)
         __pushKV(key, val_);
     return true;
 }
+#endif
 
 bool UniValue::pushKV(const std::string& key, UniValue&& val_)
 {
@@ -227,13 +240,14 @@ bool UniValue::pushKV(const std::string& key, UniValue&& val_)
 
     size_t idx;
     if (findKey(key, idx))
-        values[idx] = val_;
+        values[idx] = std::move(val_);
     else
         __pushKV(key, std::move(val_));
     return true;
 }
 
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::pushKV(std::string&& key, const UniValue& val_)
 {
     if (typ != VOBJ)
@@ -246,6 +260,7 @@ bool UniValue::pushKV(std::string&& key, const UniValue& val_)
         __pushKV(std::move(key), val_);
     return true;
 }
+#endif
 
 bool UniValue::pushKV(std::string&& key, UniValue&& val_)
 {
@@ -254,12 +269,13 @@ bool UniValue::pushKV(std::string&& key, UniValue&& val_)
 
     size_t idx;
     if (findKey(key, idx))
-        values[idx] = val_;
+        values[idx] = std::move(val_);
     else
         __pushKV(std::move(key), std::move(val_));
     return true;
 }
 
+#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::pushKVs(const UniValue& obj)
 {
     if (typ != VOBJ || obj.typ != VOBJ)
@@ -270,6 +286,7 @@ bool UniValue::pushKVs(const UniValue& obj)
 
     return true;
 }
+#endif
 
 bool UniValue::pushKVs(UniValue&& obj)
 {
@@ -289,7 +306,7 @@ void UniValue::getObjMap(std::map<std::string,UniValue>& kv) const
 
     kv.clear();
     for (size_t i = 0; i < keys.size(); i++)
-        kv[keys[i]] = values[i];
+        kv[keys[i]] = values[i].copy();
 }
 
 bool UniValue::findKey(const std::string& key, size_t& retIdx) const

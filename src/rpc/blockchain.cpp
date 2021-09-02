@@ -427,7 +427,7 @@ static RPCHelpMan syncwithvalidationinterfacequeue()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     SyncWithValidationInterfaceQueue();
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -1297,11 +1297,11 @@ static RPCHelpMan gettxout()
         LOCK(mempool.cs);
         CCoinsViewMemPool view(coins_view, mempool);
         if (!view.GetCoin(out, coin) || mempool.isSpent(out)) {
-            return NullUniValue;
+            return NullUniValue.copy();
         }
     } else {
         if (!coins_view->GetCoin(out, coin)) {
-            return NullUniValue;
+            return NullUniValue.copy();
         }
     }
 
@@ -1722,7 +1722,7 @@ static RPCHelpMan preciousblock()
         throw JSONRPCError(RPC_DATABASE_ERROR, state.ToString());
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -1763,7 +1763,7 @@ static RPCHelpMan invalidateblock()
         throw JSONRPCError(RPC_DATABASE_ERROR, state.ToString());
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -1803,7 +1803,7 @@ static RPCHelpMan reconsiderblock()
         throw JSONRPCError(RPC_DATABASE_ERROR, state.ToString());
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -2023,7 +2023,7 @@ static RPCHelpMan getblockstats()
 
     std::set<std::string> stats;
     if (!request.params[1].isNull()) {
-        const UniValue stats_univalue = request.params[1].get_array();
+        const UniValue& stats_univalue = request.params[1].get_array();
         for (unsigned int i = 0; i < stats_univalue.size(); i++) {
             const std::string stat = stats_univalue[i].get_str();
             stats.insert(stat);
@@ -2215,7 +2215,7 @@ static RPCHelpMan savemempool()
         throw JSONRPCError(RPC_MISC_ERROR, "Unable to dump mempool to disk");
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -2350,7 +2350,7 @@ static RPCHelpMan scantxoutset()
         CoinsViewScanReserver reserver;
         if (reserver.reserve()) {
             // no scan in progress
-            return NullUniValue;
+            return NullUniValue.copy();
         }
         result.pushKV("progress", g_scan_progress);
         return result;

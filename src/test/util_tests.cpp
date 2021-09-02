@@ -748,23 +748,23 @@ BOOST_AUTO_TEST_CASE(util_GetArg)
     TestArgsManager testArgs;
     LOCK(testArgs.cs_args);
     testArgs.m_settings.command_line_options.clear();
-    testArgs.m_settings.command_line_options["strtest1"] = {"string..."};
+    testArgs.m_settings.command_line_options.try_emplace("strtest1", std::vector<util::SettingsValue>({"string..."}));
     // strtest2 undefined on purpose
-    testArgs.m_settings.command_line_options["inttest1"] = {"12345"};
-    testArgs.m_settings.command_line_options["inttest2"] = {"81985529216486895"};
+    testArgs.m_settings.command_line_options.try_emplace("inttest1", std::vector<util::SettingsValue>({"12345"}));
+    testArgs.m_settings.command_line_options.try_emplace("inttest2", std::vector<util::SettingsValue>({"81985529216486895"}));
     // inttest3 undefined on purpose
-    testArgs.m_settings.command_line_options["booltest1"] = {""};
+    testArgs.m_settings.command_line_options.try_emplace("booltest1", std::vector<util::SettingsValue>({""}));
     // booltest2 undefined on purpose
-    testArgs.m_settings.command_line_options["booltest3"] = {"0"};
-    testArgs.m_settings.command_line_options["booltest4"] = {"1"};
+    testArgs.m_settings.command_line_options.try_emplace("booltest3", std::vector<util::SettingsValue>({"0"}));
+    testArgs.m_settings.command_line_options.try_emplace("booltest4", std::vector<util::SettingsValue>({"1"}));
 
     // priorities
-    testArgs.m_settings.command_line_options["pritest1"] = {"a", "b"};
-    testArgs.m_settings.ro_config[""]["pritest2"] = {"a", "b"};
-    testArgs.m_settings.command_line_options["pritest3"] = {"a"};
-    testArgs.m_settings.ro_config[""]["pritest3"] = {"b"};
-    testArgs.m_settings.command_line_options["pritest4"] = {"a","b"};
-    testArgs.m_settings.ro_config[""]["pritest4"] = {"c","d"};
+    testArgs.m_settings.command_line_options.try_emplace("pritest1", std::vector<util::SettingsValue>{"a", "b"});
+    testArgs.m_settings.ro_config[""]["pritest2"] = std::vector<util::SettingsValue>({"a", "b"});
+    testArgs.m_settings.command_line_options["pritest3"] = std::vector<util::SettingsValue>({"a"});
+    testArgs.m_settings.ro_config[""]["pritest3"] = std::vector<util::SettingsValue>({"b"});
+    testArgs.m_settings.command_line_options["pritest4"] = std::vector<util::SettingsValue>({"a","b"});
+    testArgs.m_settings.ro_config[""]["pritest4"] = std::vector<util::SettingsValue>({"c","d"});
 
     BOOST_CHECK_EQUAL(testArgs.GetArg("strtest1", "default"), "string...");
     BOOST_CHECK_EQUAL(testArgs.GetArg("strtest2", "default"), "default");

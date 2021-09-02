@@ -84,7 +84,7 @@ bool ReadSettings(const fs::path& path, std::map<std::string, SettingsValue>& va
     const std::vector<std::string>& in_keys = in.getKeys();
     const std::vector<SettingsValue>& in_values = in.getValues();
     for (size_t i = 0; i < in_keys.size(); ++i) {
-        auto inserted = values.emplace(in_keys[i], in_values[i]);
+        auto inserted = values.emplace(in_keys[i], in_values[i].copy());
         if (!inserted.second) {
             errors.emplace_back(strprintf("Found duplicate key %s in settings file %s", in_keys[i], path.string()));
         }
@@ -154,7 +154,7 @@ SettingsValue GetSetting(const Settings& settings,
         if (skip_negated_command_line && span.last_negated()) return;
 
         if (!span.empty()) {
-            result = reverse_precedence ? span.begin()[0] : span.end()[-1];
+            result = (reverse_precedence ? span.begin()[0] : span.end()[-1]).copy();
             done = true;
         } else if (span.last_negated()) {
             result = false;
@@ -192,9 +192,11 @@ std::vector<SettingsValue> GetSettingsList(const Settings& settings,
         if (!done || add_zombie_config_values) {
             for (const auto& value : span) {
                 if (value.isArray()) {
-                    result.insert(result.end(), value.getValues().begin(), value.getValues().end());
+                    for (auto const& v : value.getValues()) {
+                        result.push_back(v.copy());
+                    }
                 } else {
-                    result.push_back(value);
+                    result.push_back(value.copy());
                 }
             }
         }

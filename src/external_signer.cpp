@@ -27,7 +27,7 @@ bool ExternalSigner::Enumerate(const std::string& command, std::vector<ExternalS
     if (!result.isArray()) {
         throw std::runtime_error(strprintf("'%s' received invalid response, expected array of signers", command));
     }
-    for (UniValue signer : result.getValues()) {
+    for (UniValue const& signer : result.getValues()) {
         // Check for error
         const UniValue& error = find_value(signer, "error");
         if (!error.isNull()) {

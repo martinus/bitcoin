@@ -25,8 +25,8 @@ UniValue JSONRPCRequestObj(const std::string& strMethod, const UniValue& params,
 {
     UniValue request(UniValue::VOBJ);
     request.pushKV("method", strMethod);
-    request.pushKV("params", UniValue{params});
-    request.pushKV("id", UniValue{id});
+    request.pushKV("params", params.copy());
+    request.pushKV("id", id.copy());
     return request;
 }
 
@@ -34,11 +34,11 @@ UniValue JSONRPCReplyObj(const UniValue& result, const UniValue& error, const Un
 {
     UniValue reply(UniValue::VOBJ);
     if (!error.isNull())
-        reply.pushKV("result", UniValue{NullUniValue});
+        reply.pushKV("result", NullUniValue.copy());
     else
-        reply.pushKV("result", UniValue{result});
-    reply.pushKV("error", UniValue{error});
-    reply.pushKV("id", UniValue{id});
+        reply.pushKV("result", result.copy());
+    reply.pushKV("error", error.copy());
+    reply.pushKV("id", id.copy());
     return reply;
 }
 
@@ -145,7 +145,7 @@ std::vector<UniValue> JSONRPCProcessBatchReply(const UniValue& in)
         if (id >= num) {
             throw std::runtime_error("Batch member id is larger than batch size");
         }
-        batch[id] = rec;
+        batch[id] = rec.copy();
     }
     return batch;
 }
@@ -158,10 +158,10 @@ void JSONRPCRequest::parse(const UniValue& valRequest)
     const UniValue& request = valRequest.get_obj();
 
     // Parse id now so errors from here on will have the id
-    id = find_value(request, "id");
+    id = find_value(request, "id").copy();
 
     // Parse method
-    UniValue valMethod = find_value(request, "method");
+    UniValue valMethod = find_value(request, "method").copy();
     if (valMethod.isNull())
         throw JSONRPCError(RPC_INVALID_REQUEST, "Missing method");
     if (!valMethod.isStr())
@@ -174,9 +174,9 @@ void JSONRPCRequest::parse(const UniValue& valRequest)
         LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s\n", SanitizeString(strMethod), this->authUser);
 
     // Parse params
-    UniValue valParams = find_value(request, "params");
+    UniValue valParams = find_value(request, "params").copy();
     if (valParams.isArray() || valParams.isObject())
-        params = valParams;
+        params = valParams.copy();
     else if (valParams.isNull())
         params = UniValue(UniValue::VARR);
     else

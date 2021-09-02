@@ -127,7 +127,7 @@ static void RegisterSetJson(const std::string& key, const std::string& rawJson)
         throw std::runtime_error(strErr);
     }
 
-    registers[key] = val;
+    registers[key] = std::move(val);
 }
 
 static void RegisterSet(const std::string& strInput)
@@ -565,7 +565,7 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
     if (!registers.count("privatekeys"))
         throw std::runtime_error("privatekeys register variable must be set.");
     FillableSigningProvider tempKeystore;
-    UniValue keysObj = registers["privatekeys"];
+    UniValue const& keysObj = registers["privatekeys"];
 
     for (unsigned int kidx = 0; kidx < keysObj.size(); kidx++) {
         if (!keysObj[kidx].isStr())
@@ -580,10 +580,10 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
     // Add previous txouts given in the RPC call:
     if (!registers.count("prevtxs"))
         throw std::runtime_error("prevtxs register variable must be set.");
-    UniValue prevtxsObj = registers["prevtxs"];
+    UniValue const& prevtxsObj = registers["prevtxs"];
     {
         for (unsigned int previdx = 0; previdx < prevtxsObj.size(); previdx++) {
-            UniValue prevOut = prevtxsObj[previdx];
+            UniValue const& prevOut = prevtxsObj[previdx];
             if (!prevOut.isObject())
                 throw std::runtime_error("expected prevtxs internal object");
 
@@ -630,7 +630,7 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
             // add redeemScript to the tempKeystore so it can be signed:
             if ((scriptPubKey.IsPayToScriptHash() || scriptPubKey.IsPayToWitnessScriptHash()) &&
                 prevOut.exists("redeemScript")) {
-                UniValue v = prevOut["redeemScript"];
+                UniValue const& v = prevOut["redeemScript"];
                 std::vector<unsigned char> rsData(ParseHexUV(v, "redeemScript"));
                 CScript redeemScript(rsData.begin(), rsData.end());
                 tempKeystore.AddCScript(redeemScript);

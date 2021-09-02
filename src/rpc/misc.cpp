@@ -406,7 +406,7 @@ static RPCHelpMan setmocktime()
         }
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -439,7 +439,7 @@ static RPCHelpMan mockscheduler()
     CHECK_NONFATAL(node_context->scheduler);
     node_context->scheduler->MockForward(std::chrono::seconds(delta_seconds));
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -531,8 +531,8 @@ static RPCHelpMan getmemoryinfo()
     };
 }
 
-static void EnableOrDisableLogCategories(UniValue cats, bool enable) {
-    cats = cats.get_array();
+static void EnableOrDisableLogCategories(UniValue const& c, bool enable) {
+    auto const& cats = c.get_array();
     for (unsigned int i = 0; i < cats.size(); ++i) {
         std::string cat = cats[i].get_str();
 
@@ -645,7 +645,7 @@ static RPCHelpMan echo(const std::string& name)
         CHECK_NONFATAL(request.params[9].get_str() != "trigger_internal_bug");
     }
 
-    return request.params;
+    return request.params.copy();
 },
     };
 }

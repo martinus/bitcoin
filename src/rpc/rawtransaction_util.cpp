@@ -30,11 +30,11 @@ CMutableTransaction ConstructTransaction(const UniValue& inputs_in, const UniVal
     if (inputs_in.isNull()) {
         inputs = UniValue::VARR;
     } else {
-        inputs = inputs_in.get_array();
+        inputs = inputs_in.get_array().copy();
     }
 
     const bool outputs_is_obj = outputs_in.isObject();
-    UniValue outputs = outputs_is_obj ? outputs_in.get_obj() : outputs_in.get_array();
+    UniValue outputs = outputs_is_obj ? outputs_in.get_obj().copy() : outputs_in.get_array().copy();
 
     CMutableTransaction rawTx;
 
@@ -158,14 +158,14 @@ static void TxInErrorToJSON(const CTxIn& txin, UniValue& vErrorsRet, const std::
 void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keystore, std::map<COutPoint, Coin>& coins)
 {
     if (!prevTxsUnival.isNull()) {
-        UniValue prevTxs = prevTxsUnival.get_array();
+        UniValue const& prevTxs = prevTxsUnival.get_array();
         for (unsigned int idx = 0; idx < prevTxs.size(); ++idx) {
             const UniValue& p = prevTxs[idx];
             if (!p.isObject()) {
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "expected object with {\"txid'\",\"vout\",\"scriptPubKey\"}");
             }
 
-            UniValue prevOut = p.get_obj();
+            UniValue const& prevOut = p.get_obj();
 
             RPCTypeCheckObj(prevOut,
                 {
@@ -212,8 +212,8 @@ void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keyst
                         {"redeemScript", UniValueType(UniValue::VSTR)},
                         {"witnessScript", UniValueType(UniValue::VSTR)},
                     }, true);
-                UniValue rs = find_value(prevOut, "redeemScript");
-                UniValue ws = find_value(prevOut, "witnessScript");
+                UniValue const& rs = find_value(prevOut, "redeemScript");
+                UniValue const& ws = find_value(prevOut, "witnessScript");
                 if (rs.isNull() && ws.isNull()) {
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "Missing redeemScript/witnessScript");
                 }

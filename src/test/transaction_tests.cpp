@@ -193,7 +193,7 @@ BOOST_AUTO_TEST_CASE(tx_valid)
     UniValue tests = read_json(std::string(json_tests::tx_valid, json_tests::tx_valid + sizeof(json_tests::tx_valid)));
 
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
-        UniValue test = tests[idx];
+        UniValue const& test = tests[idx];
         std::string strTest = test.write();
         if (test[0].isArray())
         {
@@ -205,7 +205,7 @@ BOOST_AUTO_TEST_CASE(tx_valid)
 
             std::map<COutPoint, CScript> mapprevOutScriptPubKeys;
             std::map<COutPoint, int64_t> mapprevOutValues;
-            UniValue inputs = test[0].get_array();
+            UniValue const& inputs = test[0].get_array();
             bool fValid = true;
             for (unsigned int inpIdx = 0; inpIdx < inputs.size(); inpIdx++) {
                 const UniValue& input = inputs[inpIdx];
@@ -213,7 +213,7 @@ BOOST_AUTO_TEST_CASE(tx_valid)
                     fValid = false;
                     break;
                 }
-                UniValue vinput = input.get_array();
+                UniValue const& vinput = input.get_array();
                 if (vinput.size() < 3 || vinput.size() > 4)
                 {
                     fValid = false;
@@ -281,7 +281,7 @@ BOOST_AUTO_TEST_CASE(tx_invalid)
     UniValue tests = read_json(std::string(json_tests::tx_invalid, json_tests::tx_invalid + sizeof(json_tests::tx_invalid)));
 
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
-        UniValue test = tests[idx];
+        UniValue const& test = tests[idx];
         std::string strTest = test.write();
         if (test[0].isArray())
         {
@@ -293,7 +293,7 @@ BOOST_AUTO_TEST_CASE(tx_invalid)
 
             std::map<COutPoint, CScript> mapprevOutScriptPubKeys;
             std::map<COutPoint, int64_t> mapprevOutValues;
-            UniValue inputs = test[0].get_array();
+            UniValue const& inputs = test[0].get_array();
             bool fValid = true;
             for (unsigned int inpIdx = 0; inpIdx < inputs.size(); inpIdx++) {
                 const UniValue& input = inputs[inpIdx];
@@ -301,7 +301,7 @@ BOOST_AUTO_TEST_CASE(tx_invalid)
                     fValid = false;
                     break;
                 }
-                UniValue vinput = input.get_array();
+                UniValue const& vinput = input.get_array();
                 if (vinput.size() < 3 || vinput.size() > 4)
                 {
                     fValid = false;

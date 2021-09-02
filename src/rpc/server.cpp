@@ -502,8 +502,8 @@ UniValue CRPCTable::dumpArgMap(const JSONRPCRequest& args_request) const
     for (const auto& cmd : mapCommands) {
         UniValue result;
         if (ExecuteCommands(cmd.second, request, result)) {
-            for (auto& values : result.getValues()) {
-                ret.push_back(std::move(values));
+            for (auto const& values : result.getValues()) {
+                ret.push_back(values.copy());
             }
         }
     }

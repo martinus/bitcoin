@@ -26,7 +26,7 @@ inline std::ostream& operator<<(std::ostream& os, const util::SettingsValue& val
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const std::pair<std::string, util::SettingsValue>& kv)
+inline std::ostream& operator<<(std::ostream& os, const std::pair<const std::string, util::SettingsValue>& kv)
 {
     util::SettingsValue out(util::SettingsValue::VOBJ);
     out.__pushKV(kv.first, kv.second.copy());
@@ -55,10 +55,10 @@ BOOST_AUTO_TEST_CASE(ReadWrite)
     })");
 
     std::map<std::string, util::SettingsValue> expected{
-        {"string", "string"},
-        {"num", 5},
-        {"bool", true},
-        {"null", {}},
+        {"string", util::SettingsValue{"string"}},
+        {"num", util::SettingsValue{5}},
+        {"bool", util::SettingsValue{true}},
+        {"null", util::SettingsValue{}},
     };
 
     // Check file read.

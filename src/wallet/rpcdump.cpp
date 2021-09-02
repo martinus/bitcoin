@@ -120,7 +120,7 @@ RPCHelpMan importprivkey()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     if (pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Cannot import private keys to a wallet with private keys disabled");
@@ -188,7 +188,7 @@ RPCHelpMan importprivkey()
         RescanWallet(*pwallet, reserver);
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -211,7 +211,7 @@ RPCHelpMan abortrescan()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     if (!pwallet->IsScanning() || pwallet->IsAbortingRescan()) return false;
     pwallet->AbortRescan();
@@ -249,7 +249,7 @@ RPCHelpMan importaddress()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     EnsureLegacyScriptPubKeyMan(*pwallet, true);
 
@@ -319,7 +319,7 @@ RPCHelpMan importaddress()
         }
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -337,7 +337,7 @@ RPCHelpMan importprunedfunds()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     CMutableTransaction tx;
     if (!DecodeHexTx(tx, request.params[0].get_str())) {
@@ -374,7 +374,7 @@ RPCHelpMan importprunedfunds()
     CTransactionRef tx_ref = MakeTransactionRef(tx);
     if (pwallet->IsMine(*tx_ref)) {
         pwallet->AddToWallet(std::move(tx_ref), confirm);
-        return NullUniValue;
+        return NullUniValue.copy();
     }
 
     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No addresses in wallet correspond to included transaction");
@@ -398,7 +398,7 @@ RPCHelpMan removeprunedfunds()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     LOCK(pwallet->cs_wallet);
 
@@ -415,7 +415,7 @@ RPCHelpMan removeprunedfunds()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Transaction does not exist in wallet.");
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -445,7 +445,7 @@ RPCHelpMan importpubkey()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     EnsureLegacyScriptPubKeyMan(*pwallet, true);
 
@@ -500,7 +500,7 @@ RPCHelpMan importpubkey()
         }
     }
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -526,7 +526,7 @@ RPCHelpMan importwallet()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     EnsureLegacyScriptPubKeyMan(*pwallet, true);
 
@@ -658,7 +658,7 @@ RPCHelpMan importwallet()
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys/scripts to wallet");
 
-    return NullUniValue;
+    return NullUniValue.copy();
 },
     };
 }
@@ -682,7 +682,7 @@ RPCHelpMan dumpprivkey()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     LegacyScriptPubKeyMan& spk_man = EnsureLegacyScriptPubKeyMan(*pwallet);
 
@@ -732,7 +732,7 @@ RPCHelpMan dumpwallet()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     CWallet& wallet = *pwallet;
     LegacyScriptPubKeyMan& spk_man = EnsureLegacyScriptPubKeyMan(wallet);
@@ -955,8 +955,8 @@ static UniValue ProcessImportLegacy(ImportData& import_data, std::map<CKeyID, CP
     // Optional fields.
     const std::string& strRedeemScript = data.exists("redeemscript") ? data["redeemscript"].get_str() : "";
     const std::string& witness_script_hex = data.exists("witnessscript") ? data["witnessscript"].get_str() : "";
-    const UniValue& pubKeys = data.exists("pubkeys") ? data["pubkeys"].get_array() : UniValue();
-    const UniValue& keys = data.exists("keys") ? data["keys"].get_array() : UniValue();
+    const UniValue& pubKeys = data.exists("pubkeys") ? data["pubkeys"].get_array() : NullUniValue;
+    const UniValue& keys = data.exists("keys") ? data["keys"].get_array() : NullUniValue;
     const bool internal = data.exists("internal") ? data["internal"].get_bool() : false;
     const bool watchOnly = data.exists("watchonly") ? data["watchonly"].get_bool() : false;
 
@@ -1115,7 +1115,7 @@ static UniValue ProcessImportDescriptor(ImportData& import_data, std::map<CKeyID
         std::tie(range_start, range_end) = ParseDescriptorRange(data["range"]);
     }
 
-    const UniValue& priv_keys = data.exists("keys") ? data["keys"].get_array() : UniValue();
+    const UniValue& priv_keys = data.exists("keys") ? data["keys"].get_array() : NullUniValue;
 
     // Expand all descriptors to get public keys and scripts, and private keys if available.
     for (int i = range_start; i <= range_end; ++i) {
@@ -1344,7 +1344,7 @@ RPCHelpMan importmulti()
         [&](const RPCHelpMan& self, const JSONRPCRequest& mainRequest) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(mainRequest);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     RPCTypeCheck(mainRequest.params, {UniValue::VARR, UniValue::VOBJ});
 
@@ -1659,7 +1659,7 @@ RPCHelpMan importdescriptors()
         [&](const RPCHelpMan& self, const JSONRPCRequest& main_request) -> UniValue
 {
     std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(main_request);
-    if (!pwallet) return NullUniValue;
+    if (!pwallet) return NullUniValue.copy();
 
     //  Make sure wallet is a descriptor wallet
     if (!pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
@@ -1789,7 +1789,7 @@ RPCHelpMan listdescriptors()
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
+    if (!wallet) return NullUniValue.copy();
 
     if (!wallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
         throw JSONRPCError(RPC_WALLET_ERROR, "listdescriptors is not available for non-descriptor wallets");

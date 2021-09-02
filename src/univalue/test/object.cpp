@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(univalue_array)
     UniValue arr(UniValue::VARR);
 
     UniValue v((int64_t)1023LL);
-    BOOST_CHECK(arr.push_back(v));
+    BOOST_CHECK(arr.push_back(v.copy()));
 
     std::string vStr("zippy");
     BOOST_CHECK(arr.push_back(vStr));
@@ -199,12 +199,12 @@ BOOST_AUTO_TEST_CASE(univalue_array)
 
     std::vector<UniValue> vec;
     v.setStr("boing");
-    vec.push_back(v);
+    vec.push_back(v.copy());
 
     v.setStr("going");
-    vec.push_back(v);
+    vec.push_back(v.copy());
 
-    BOOST_CHECK(arr.push_backV(vec));
+    BOOST_CHECK(arr.push_backV(std::move(vec)));
 
     BOOST_CHECK(arr.push_back((uint64_t) 400ULL));
     BOOST_CHECK(arr.push_back((int64_t) -400LL));
@@ -251,7 +251,7 @@ BOOST_AUTO_TEST_CASE(univalue_object)
 
     strKey = "age";
     v.setInt(100);
-    BOOST_CHECK(obj.pushKV(strKey, v));
+    BOOST_CHECK(obj.pushKV(strKey, std::move(v)));
 
     strKey = "first";
     strVal = "John";
@@ -283,7 +283,7 @@ BOOST_AUTO_TEST_CASE(univalue_object)
     BOOST_CHECK(obj2.pushKV("cat1", 9000));
     BOOST_CHECK(obj2.pushKV("cat2", 12345));
 
-    BOOST_CHECK(obj.pushKVs(obj2));
+    BOOST_CHECK(obj.pushKVs(std::move(obj2)));
 
     BOOST_CHECK_EQUAL(obj.empty(), false);
     BOOST_CHECK_EQUAL(obj.size(), 11);
@@ -341,12 +341,12 @@ BOOST_AUTO_TEST_CASE(univalue_object)
     BOOST_CHECK_EQUAL(obj.setObject(), true);
     UniValue uv;
     uv.setInt(42);
-    obj.__pushKV("age", uv);
+    obj.__pushKV("age", uv.copy());
     BOOST_CHECK_EQUAL(obj.size(), 1);
     BOOST_CHECK_EQUAL(obj["age"].getValStr(), "42");
 
     uv.setInt(43);
-    obj.pushKV("age", uv);
+    obj.pushKV("age", std::move(uv));
     BOOST_CHECK_EQUAL(obj.size(), 1);
     BOOST_CHECK_EQUAL(obj["age"].getValStr(), "43");
 
@@ -375,7 +375,7 @@ BOOST_AUTO_TEST_CASE(univalue_readwrite)
 
     BOOST_CHECK_EQUAL(v[0].getValStr(), "1.10000000");
 
-    UniValue obj = v[1];
+    UniValue const& obj = v[1];
     BOOST_CHECK(obj.isObject());
     BOOST_CHECK_EQUAL(obj.size(), 3);
 

@@ -572,7 +572,7 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
     if (request.mode == JSONRPCRequest::GET_HELP || !IsValidNumArgs(request.params.size())) {
         throw std::runtime_error(ToString());
     }
-    const UniValue ret = m_fun(*this, request);
+    UniValue ret = m_fun(*this, request);
     CHECK_NONFATAL(std::any_of(m_results.m_results.begin(), m_results.m_results.end(), [ret](const RPCResult& res) { return res.MatchesType(ret); }));
     return ret;
 }
@@ -995,10 +995,10 @@ std::vector<CScript> EvalDescriptorStringOrObject(const UniValue& scanobject, Fl
     if (scanobject.isStr()) {
         desc_str = scanobject.get_str();
     } else if (scanobject.isObject()) {
-        UniValue desc_uni = find_value(scanobject, "desc");
+        UniValue const& desc_uni = find_value(scanobject, "desc");
         if (desc_uni.isNull()) throw JSONRPCError(RPC_INVALID_PARAMETER, "Descriptor needs to be provided in scan object");
         desc_str = desc_uni.get_str();
-        UniValue range_uni = find_value(scanobject, "range");
+        UniValue const& range_uni = find_value(scanobject, "range");
         if (!range_uni.isNull()) {
             range = ParseDescriptorRange(range_uni);
         }

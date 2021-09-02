@@ -165,12 +165,12 @@ struct RPCArg {
     const std::vector<std::string> m_type_str; //!< Should be empty unless it is supposed to override the auto-generated type strings. Vector length is either 0 or 2, m_type_str.at(0) will override the type of the value in a key-value pair, m_type_str.at(1) will override the type in the argument description.
 
     RPCArg(
-        const std::string name,
+        std::string name,
         const Type type,
-        const Fallback fallback,
-        const std::string description,
-        const std::string oneline_description = "",
-        const std::vector<std::string> type_str = {},
+        Fallback fallback,
+        std::string description,
+        std::string oneline_description = "",
+        std::vector<std::string> type_str = {},
         const bool hidden = false)
         : m_names{std::move(name)},
           m_type{std::move(type)},
@@ -184,12 +184,12 @@ struct RPCArg {
     }
 
     RPCArg(
-        const std::string name,
+        std::string name,
         const Type type,
-        const Fallback fallback,
-        const std::string description,
-        const std::vector<RPCArg> inner,
-        const std::string oneline_description = "",
+        Fallback fallback,
+        std::string description,
+        std::vector<RPCArg> inner,
+        std::string oneline_description = "",
         const std::vector<std::string> type_str = {})
         : m_names{std::move(name)},
           m_type{std::move(type)},

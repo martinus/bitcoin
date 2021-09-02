@@ -255,20 +255,20 @@ BOOST_AUTO_TEST_CASE(rpc_ban)
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 127.0.0.0 add")));
     BOOST_CHECK_THROW(r = CallRPC(std::string("setban 127.0.0.0:8334")), std::runtime_error); //portnumber for setban not allowed
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    UniValue ar = r.get_array();
-    UniValue o1 = ar[0].get_obj();
-    UniValue adr = find_value(o1, "address");
+    UniValue ar = r.get_array().copy();
+    UniValue o1 = ar[0].get_obj().copy();
+    UniValue adr = find_value(o1, "address").copy();
     BOOST_CHECK_EQUAL(adr.get_str(), "127.0.0.0/32");
     BOOST_CHECK_NO_THROW(CallRPC(std::string("setban 127.0.0.0 remove")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    ar = r.get_array();
+    ar = r.get_array().copy();
     BOOST_CHECK_EQUAL(ar.size(), 0U);
 
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 127.0.0.0/24 add 9907731200 true")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    ar = r.get_array();
-    o1 = ar[0].get_obj();
-    adr = find_value(o1, "address");
+    ar = r.get_array().copy();
+    o1 = ar[0].get_obj().copy();
+    adr = find_value(o1, "address").copy();
     int64_t banned_until{find_value(o1, "banned_until").get_int64()};
     BOOST_CHECK_EQUAL(adr.get_str(), "127.0.0.0/24");
     BOOST_CHECK_EQUAL(banned_until, 9907731200); // absolute time check
@@ -281,9 +281,9 @@ BOOST_AUTO_TEST_CASE(rpc_ban)
     SetMockTime(now += 2s);
     const int64_t time_remaining_expected{198};
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    ar = r.get_array();
-    o1 = ar[0].get_obj();
-    adr = find_value(o1, "address");
+    ar = r.get_array().copy();
+    o1 = ar[0].get_obj().copy();
+    adr = find_value(o1, "address").copy();
     banned_until = find_value(o1, "banned_until").get_int64();
     const int64_t ban_created{find_value(o1, "ban_created").get_int64()};
     const int64_t ban_duration{find_value(o1, "ban_duration").get_int64()};
@@ -298,7 +298,7 @@ BOOST_AUTO_TEST_CASE(rpc_ban)
 
     BOOST_CHECK_NO_THROW(CallRPC(std::string("setban 127.0.0.0/24 remove")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    ar = r.get_array();
+    ar = r.get_array().copy();
     BOOST_CHECK_EQUAL(ar.size(), 0U);
 
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 127.0.0.0/255.255.0.0 add")));
@@ -306,7 +306,7 @@ BOOST_AUTO_TEST_CASE(rpc_ban)
 
     BOOST_CHECK_NO_THROW(CallRPC(std::string("clearbanned")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    ar = r.get_array();
+    ar = r.get_array().copy();
     BOOST_CHECK_EQUAL(ar.size(), 0U);
 
 
@@ -315,25 +315,25 @@ BOOST_AUTO_TEST_CASE(rpc_ban)
     //IPv6 tests
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban FE80:0000:0000:0000:0202:B3FF:FE1E:8329 add")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    ar = r.get_array();
-    o1 = ar[0].get_obj();
-    adr = find_value(o1, "address");
+    ar = r.get_array().copy();
+    o1 = ar[0].get_obj().copy();
+    adr = find_value(o1, "address").copy();
     BOOST_CHECK_EQUAL(adr.get_str(), "fe80::202:b3ff:fe1e:8329/128");
 
     BOOST_CHECK_NO_THROW(CallRPC(std::string("clearbanned")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 2001:db8::/ffff:fffc:0:0:0:0:0:0 add")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    ar = r.get_array();
-    o1 = ar[0].get_obj();
-    adr = find_value(o1, "address");
+    ar = r.get_array().copy();
+    o1 = ar[0].get_obj().copy();
+    adr = find_value(o1, "address").copy();
     BOOST_CHECK_EQUAL(adr.get_str(), "2001:db8::/30");
 
     BOOST_CHECK_NO_THROW(CallRPC(std::string("clearbanned")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 2001:4d48:ac57:400:cacf:e9ff:fe1d:9c63/128 add")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
-    ar = r.get_array();
-    o1 = ar[0].get_obj();
-    adr = find_value(o1, "address");
+    ar = r.get_array().copy();
+    o1 = ar[0].get_obj().copy();
+    adr = find_value(o1, "address").copy();
     BOOST_CHECK_EQUAL(adr.get_str(), "2001:4d48:ac57:400:cacf:e9ff:fe1d:9c63/128");
 }
 
@@ -455,16 +455,16 @@ BOOST_AUTO_TEST_CASE(help_example)
     obj_value.pushKV("foo", "bar");
     obj_value.pushKV("b", false);
     obj_value.pushKV("n", 1);
-    BOOST_CHECK_EQUAL(HelpExampleCliNamed("test", {{"name", obj_value}}), "> bitcoin-cli -named test name='{\"foo\":\"bar\",\"b\":false,\"n\":1}'\n");
-    BOOST_CHECK_EQUAL(HelpExampleRpcNamed("test", {{"name", obj_value}}), "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\": \"curltest\", \"method\": \"test\", \"params\": {\"name\":{\"foo\":\"bar\",\"b\":false,\"n\":1}}}' -H 'content-type: text/plain;' http://127.0.0.1:8332/\n");
+    BOOST_CHECK_EQUAL(HelpExampleCliNamed("test", {{"name", obj_value.copy()}}), "> bitcoin-cli -named test name='{\"foo\":\"bar\",\"b\":false,\"n\":1}'\n");
+    BOOST_CHECK_EQUAL(HelpExampleRpcNamed("test", {{"name", obj_value.copy()}}), "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\": \"curltest\", \"method\": \"test\", \"params\": {\"name\":{\"foo\":\"bar\",\"b\":false,\"n\":1}}}' -H 'content-type: text/plain;' http://127.0.0.1:8332/\n");
 
     // test array params
     UniValue arr_value(UniValue::VARR);
     arr_value.push_back("bar");
     arr_value.push_back(false);
     arr_value.push_back(1);
-    BOOST_CHECK_EQUAL(HelpExampleCliNamed("test", {{"name", arr_value}}), "> bitcoin-cli -named test name='[\"bar\",false,1]'\n");
-    BOOST_CHECK_EQUAL(HelpExampleRpcNamed("test", {{"name", arr_value}}), "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\": \"curltest\", \"method\": \"test\", \"params\": {\"name\":[\"bar\",false,1]}}' -H 'content-type: text/plain;' http://127.0.0.1:8332/\n");
+    BOOST_CHECK_EQUAL(HelpExampleCliNamed("test", {{"name", arr_value.copy()}}), "> bitcoin-cli -named test name='[\"bar\",false,1]'\n");
+    BOOST_CHECK_EQUAL(HelpExampleRpcNamed("test", {{"name", arr_value.copy()}}), "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\": \"curltest\", \"method\": \"test\", \"params\": {\"name\":[\"bar\",false,1]}}' -H 'content-type: text/plain;' http://127.0.0.1:8332/\n");
 
     // test types don't matter for shell
     BOOST_CHECK_EQUAL(HelpExampleCliNamed("foo", {{"arg", true}}), HelpExampleCliNamed("foo", {{"arg", "true"}}));

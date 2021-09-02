@@ -367,7 +367,7 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
 
         if (!CheckValid(key, value, *flags, error)) return false;
 
-        m_settings.command_line_options[key].push_back(value);
+        m_settings.command_line_options[key].push_back(std::move(value));
     }
 
     // we do not allow -includeconf from command line, only -noincludeconf
@@ -880,7 +880,7 @@ bool ArgsManager::ReadConfigStream(std::istream& stream, const std::string& file
             if (!CheckValid(key, value, *flags, error)) {
                 return false;
             }
-            m_settings.ro_config[section][key].push_back(value);
+            m_settings.ro_config[section][key].push_back(std::move(value));
         } else {
             if (ignore_invalid_keys) {
                 LogPrintf("Ignoring unknown configuration value %s\n", option.first);

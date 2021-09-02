@@ -187,7 +187,9 @@ CBanDB::CBanDB(fs::path ban_list_path)
 bool CBanDB::Write(const banmap_t& banSet)
 {
     std::vector<std::string> errors;
-    if (util::WriteSettings(m_banlist_json, {{JSON_KEY, BanMapToJson(banSet)}}, errors)) {
+    std::map<std::string, util::SettingsValue> map;
+    map.try_emplace(JSON_KEY, BanMapToJson(banSet));
+    if (util::WriteSettings(m_banlist_json, map, errors)) {
         return true;
     }
 

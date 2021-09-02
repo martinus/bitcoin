@@ -335,7 +335,7 @@ static RPCHelpMan generateblock()
     const CTxMemPool& mempool = EnsureMemPool(node);
 
     std::vector<CTransactionRef> txs;
-    const auto raw_txs_or_txids = request.params[1].get_array();
+    const auto&  raw_txs_or_txids = request.params[1].get_array();
     for (size_t i = 0; i < raw_txs_or_txids.size(); i++) {
         const auto str(raw_txs_or_txids[i].get_str());
 
@@ -489,7 +489,7 @@ static RPCHelpMan prioritisetransaction()
 static UniValue BIP22ValidationResult(const BlockValidationState& state)
 {
     if (state.IsValid())
-        return NullUniValue;
+        return NullUniValue.copy();
 
     if (state.IsError())
         throw JSONRPCError(RPC_VERIFY_ERROR, state.ToString());
@@ -604,7 +604,7 @@ static RPCHelpMan getblocktemplate()
     LOCK(cs_main);
 
     std::string strMode = "template";
-    UniValue lpval = NullUniValue;
+    UniValue lpval = NullUniValue.copy();
     std::set<std::string> setClientRules;
     int64_t nMaxVersionPreVB = -1;
     CChainState& active_chainstate = chainman.ActiveChainstate();
@@ -621,7 +621,7 @@ static RPCHelpMan getblocktemplate()
         }
         else
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid mode");
-        lpval = find_value(oparam, "longpollid");
+        lpval = find_value(oparam, "longpollid").copy();
 
         if (strMode == "proposal")
         {
@@ -1048,7 +1048,7 @@ static RPCHelpMan submitheader()
 
     BlockValidationState state;
     chainman.ProcessNewBlockHeaders({h}, state, Params());
-    if (state.IsValid()) return NullUniValue;
+    if (state.IsValid()) return NullUniValue.copy();
     if (state.IsError()) {
         throw JSONRPCError(RPC_VERIFY_ERROR, state.ToString());
     }

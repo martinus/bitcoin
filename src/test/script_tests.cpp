@@ -48,7 +48,7 @@ UniValue read_json(const std::string& jsondata)
         BOOST_ERROR("Parse error.");
         return UniValue(UniValue::VARR);
     }
-    return v.get_array();
+    return v.get_array().copy();
 }
 
 struct ScriptErrorDesc
@@ -940,7 +940,7 @@ BOOST_AUTO_TEST_CASE(script_json_test)
     UniValue tests = read_json(std::string(json_tests::script_tests, json_tests::script_tests + sizeof(json_tests::script_tests)));
 
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
-        UniValue test = tests[idx];
+        UniValue const& test = tests[idx];
         std::string strTest = test.write();
         CScriptWitness witness;
         CAmount nValue = 0;

@@ -250,13 +250,13 @@ bool RPCConsole::RPCParseCommandLine(interfaces::Node* node, std::string &strRes
                                     for(char argch: curarg)
                                         if (!IsDigit(argch))
                                             throw std::runtime_error("Invalid result query");
-                                    subelement = lastResult[atoi(curarg.c_str())];
+                                    subelement = lastResult[atoi(curarg.c_str())].copy();
                                 }
                                 else if (lastResult.isObject())
-                                    subelement = find_value(lastResult, curarg);
+                                    subelement = find_value(lastResult, curarg).copy();
                                 else
                                     throw std::runtime_error("Invalid result query"); //no array or object: abort
-                                lastResult = subelement;
+                                lastResult = std::move(subelement);
                             }
 
                             state = STATE_COMMAND_EXECUTED;
