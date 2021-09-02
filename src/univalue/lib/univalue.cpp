@@ -18,11 +18,12 @@ namespace {
 
 /**
  * Performs locale-independend to string conversion of integral numbers.
- * 
+ *
  * This is much faster than using a temporary stringstream.
  */
 template<typename T>
-void appendNumToString(T n, std::string& str) {
+void appendNumToString(T n, std::string& str)
+{
     auto unsigned_n = static_cast<std::make_unsigned_t<T>>(n);
     if (n < 0) {
         str.push_back('-');
@@ -148,27 +149,59 @@ bool UniValue::setObject()
     return true;
 }
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::push_back(const UniValue& val_)
 {
-    if (typ != VARR)
-        return false;
-
-    values.push_back(val_);
-    return true;
+    return pushBackGeneric(val_);
 }
 #endif
 
 bool UniValue::push_back(UniValue&& val_)
 {
-    if (typ != VARR)
-        return false;
-
-    values.push_back(std::move(val_));
-    return true;
+    return pushBackGeneric(std::move(val_));
 }
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+bool UniValue::push_back(const std::string& val_)
+{
+    return pushBackGeneric(val_);
+}
+
+bool UniValue::push_back(std::string&& val_)
+{
+    return pushBackGeneric(std::move(val_));
+}
+
+bool UniValue::push_back(const char *val_)
+{
+    return pushBackGeneric(val_);
+}
+
+bool UniValue::push_back(uint64_t val_)
+{
+    return pushBackGeneric(val_);
+}
+
+bool UniValue::push_back(int64_t val_)
+{
+    return pushBackGeneric(val_);
+}
+
+bool UniValue::push_back(bool val_)
+{
+    return pushBackGeneric(val_);
+}
+
+bool UniValue::push_back(int val_)
+{
+    return pushBackGeneric(val_);
+}
+
+bool UniValue::push_back(double val_)
+{
+    return pushBackGeneric(val_);
+}
+
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::push_backV(const std::vector<UniValue>& vec)
 {
     if (typ != VARR)
@@ -190,7 +223,7 @@ bool UniValue::push_backV(std::vector<UniValue>&& vec)
     return true;
 }
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
 void UniValue::__pushKV(const std::string& key, const UniValue& val_)
 {
     keys.push_back(key);
@@ -204,7 +237,7 @@ void UniValue::__pushKV(const std::string& key, UniValue&& val_)
     values.push_back(std::move(val_));
 }
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
 void UniValue::__pushKV(std::string&& key, const UniValue& val_)
 {
     keys.push_back(std::move(key));
@@ -218,64 +251,122 @@ void UniValue::__pushKV(std::string&& key, UniValue&& val_)
     values.push_back(std::move(val_));
 }
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
-bool UniValue::pushKV(const std::string& key, const UniValue& val_)
+template<typename Val>
+bool UniValue::pushBackGeneric(Val&& val_)
+{
+    if (typ != VARR)
+        return false;
+
+    values.emplace_back(std::forward<Val>(val_));
+    return true;
+}
+
+template<typename Key, typename Val>
+bool UniValue::pushKVGeneric(Key&& key, Val&& val_)
 {
     if (typ != VOBJ)
         return false;
 
     size_t idx;
-    if (findKey(key, idx))
-        values[idx] = val_;
-    else
-        __pushKV(key, val_);
+    if (findKey(key, idx)) {
+        values[idx] = std::forward<Val>(val_);
+    } else {
+        keys.emplace_back(std::forward<Key>(key));
+        values.emplace_back(std::forward<Val>(val_));
+    }
     return true;
+}
+
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
+bool UniValue::pushKV(const std::string& key, const UniValue& val_)
+{
+    return pushKVGeneric(key, val_);
 }
 #endif
 
 bool UniValue::pushKV(const std::string& key, UniValue&& val_)
 {
-    if (typ != VOBJ)
-        return false;
-
-    size_t idx;
-    if (findKey(key, idx))
-        values[idx] = std::move(val_);
-    else
-        __pushKV(key, std::move(val_));
-    return true;
+    return pushKVGeneric(key, std::move(val_));
 }
 
-
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::pushKV(std::string&& key, const UniValue& val_)
 {
-    if (typ != VOBJ)
-        return false;
-
-    size_t idx;
-    if (findKey(key, idx))
-        values[idx] = val_;
-    else
-        __pushKV(std::move(key), val_);
-    return true;
+    return pushKVGeneric(std::move(key), val_);
 }
 #endif
 
 bool UniValue::pushKV(std::string&& key, UniValue&& val_)
 {
-    if (typ != VOBJ)
-        return false;
-
-    size_t idx;
-    if (findKey(key, idx))
-        values[idx] = std::move(val_);
-    else
-        __pushKV(std::move(key), std::move(val_));
-    return true;
+    return pushKVGeneric(std::move(key), std::move(val_));
 }
 
-#if !defined(DISABLE_UNIVALUE_COPY_OPERATIONS)
+bool UniValue::pushKV(const std::string& key, const std::string& val_)
+{
+    return pushKVGeneric(key, val_);
+}
+bool UniValue::pushKV(std::string&& key, const std::string& val_)
+{
+    return pushKVGeneric(std::move(key), val_);
+}
+bool UniValue::pushKV(const std::string& key, std::string&& val_)
+{
+    return pushKVGeneric(key, std::move(val_));
+}
+bool UniValue::pushKV(std::string&& key, std::string&& val_)
+{
+    return pushKVGeneric(std::move(key), std::move(val_));
+}
+bool UniValue::pushKV(const std::string& key, const char *val_)
+{
+    return pushKVGeneric(key, val_);
+}
+bool UniValue::pushKV(std::string&& key, const char *val_)
+{
+    return pushKVGeneric(std::move(key), val_);
+}
+bool UniValue::pushKV(const std::string& key, int64_t val_)
+{
+    return pushKVGeneric(key, val_);
+}
+bool UniValue::pushKV(std::string&& key, int64_t val_)
+{
+    return pushKVGeneric(std::move(key), val_);
+}
+bool UniValue::pushKV(const std::string& key, uint64_t val_)
+{
+    return pushKVGeneric(key, val_);
+}
+bool UniValue::pushKV(std::string&& key, uint64_t val_)
+{
+    return pushKVGeneric(std::move(key), val_);
+}
+bool UniValue::pushKV(const std::string& key, bool val_)
+{
+    return pushKVGeneric(key, val_);
+}
+bool UniValue::pushKV(std::string&& key, bool val_)
+{
+    return pushKVGeneric(std::move(key), val_);
+}
+bool UniValue::pushKV(const std::string& key, int val_)
+{
+    return pushKVGeneric(key, (int64_t)val_);
+}
+bool UniValue::pushKV(std::string&& key, int val_)
+{
+    return pushKVGeneric(std::move(key), (int64_t)val_);
+}
+bool UniValue::pushKV(const std::string& key, double val_)
+{
+    return pushKVGeneric(key, val_);
+}
+bool UniValue::pushKV(std::string&& key, double val_)
+{
+    return pushKVGeneric(std::move(key), val_);
+}
+
+#if !defined(NO_UNIVALUE_COPY_OPERATIONS)
 bool UniValue::pushKVs(const UniValue& obj)
 {
     if (typ != VOBJ || obj.typ != VOBJ)
@@ -306,7 +397,7 @@ void UniValue::getObjMap(std::map<std::string,UniValue>& kv) const
 
     kv.clear();
     for (size_t i = 0; i < keys.size(); i++)
-        kv[keys[i]] = values[i].copy();
+        kv.emplace(keys[i], values[i].copy());
 }
 
 bool UniValue::findKey(const std::string& key, size_t& retIdx) const
