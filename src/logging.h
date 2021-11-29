@@ -19,6 +19,111 @@
 #include <string>
 #include <vector>
 
+// inspired by https://github.com/s9w/oof
+
+namespace term {
+
+namespace detail {
+
+inline static constexpr auto hsv_to_rgb(double hue, double saturation, double value) -> std::array<double, 3> {
+    auto h_i = static_cast<int>(hue * 6);
+    auto f = hue * 6 - h_i;
+    auto p = value * (1 - saturation);
+    auto q = value * (1 - f * saturation);
+    auto t = value * (1 - (1 - f) * saturation);
+
+    switch (h_i) {
+    case 0:
+        return {value, t, p};
+    case 1:
+        return {q, value, p};
+    case 2:
+        return {p, value, t};
+    case 3:
+        return {p, q, value};
+    case 4:
+        return {t, p, value};
+    case 5:
+        return {value, p, q};
+    }
+
+    throw std::runtime_error("overflow?");
+}
+
+} // namespace detail
+
+enum class ColorType : uint8_t { foreground, background, reset };
+
+// Changes background color
+struct Color {
+    uint8_t m_r{};
+    uint8_t m_g{};
+    uint8_t m_b{};
+    ColorType m_color_type = ColorType::reset;
+
+    // reset
+    inline constexpr Color() = default;
+
+    inline constexpr Color(ColorType ct, double r, double g, double b)
+        : m_r(std::clamp<int>(r * 256, 0, 255))
+        , m_g(std::clamp<int>(g * 256, 0, 255))
+        , m_b(std::clamp<int>(b * 256, 0, 255))
+        , m_color_type(ct) {}
+};
+
+inline constexpr auto operator<<(std::ostream& os, Color const& c) -> std::ostream& {
+    if (ColorType::reset == c.m_color_type) {
+        return os << "\x1b[0m";
+    }
+
+    char const* code = ColorType::foreground == c.m_color_type ? "\x1b[38;2;" : "\x1b[48;2;";
+    return os << code << (int)c.m_r << ';' << (int)c.m_g << ';' << (int)c.m_b << 'm';
+}
+
+inline constexpr auto hsv_bg(double hue, double saturation, double value) -> Color {
+    auto rgb = detail::hsv_to_rgb(hue, saturation, value);
+    return {ColorType::background, rgb[0], rgb[1], rgb[2]};
+}
+
+inline constexpr auto hsv_fg(double hue, double saturation, double value) -> Color {
+    auto rgb = detail::hsv_to_rgb(hue, saturation, value);
+    return {ColorType::foreground, rgb[0], rgb[1], rgb[2]};
+}
+
+inline auto reset() -> Color {
+    return {};
+}
+
+// murmur 3 hash finalizer
+inline constexpr auto mix(uint64_t x) -> uint64_t {
+    x ^= (x >> 33);
+    x *= 0xff51afd7ed558ccd;
+    x ^= (x >> 33);
+    x *= 0xc4ceb9fe1a85ec53;
+    x ^= (x >> 33);
+    return x;
+}
+
+inline constexpr auto hash(std::string_view sv) -> uint64_t {
+    uint64_t h = 1234;
+    for (auto c : sv) {
+        h = mix(h ^ c);
+    }
+    return h;
+}
+
+inline constexpr auto hash100(std::string_view sv) -> int {
+    return static_cast<int>(hash(sv) / 18446744073709551616.0 * 100.0);
+}
+
+// values 0-100. Ought to be enough resolution for everybody
+template <int Hue100, int Saturation100, int Value100>
+struct HSV_FG {
+    static constexpr auto value = hsv_fg(Hue100 / 100.0, Saturation100 / 100.0, Value100 / 100.0);
+};
+
+} // namespace term
+
 static const bool DEFAULT_LOGTIMEMICROS = false;
 static const bool DEFAULT_LOGIPS        = false;
 static const bool DEFAULT_LOGTIMESTAMPS = true;
@@ -103,7 +208,7 @@ namespace BCLog {
         std::atomic<bool> m_reopen_file{false};
 
         /** Send a string to the log output */
-        void LogPrintStr(const std::string& str, const std::string& logging_function, const std::string& source_file, const int source_line);
+        void LogPrintStr(const std::string& str, const std::string& logging_function, const std::string& source_file, const int source_line, term::Color col);
 
         /** Returns whether logs will be written to any output */
         bool Enabled() const
@@ -171,7 +276,7 @@ bool GetLogCategory(BCLog::LogFlags& flag, const std::string& str);
 // peer can fill up a user's disk with debug.log entries.
 
 template <typename... Args>
-static inline void LogPrintf_(const std::string& logging_function, const std::string& source_file, const int source_line, const char* fmt, const Args&... args)
+static inline void LogPrintf_(const std::string& logging_function, const std::string& source_file, const int source_line, term::Color col, const char* fmt, const Args&... args)
 {
     if (LogInstance().Enabled()) {
         std::string log_msg;
@@ -181,11 +286,11 @@ static inline void LogPrintf_(const std::string& logging_function, const std::st
             /* Original format string will have newline so don't add one here */
             log_msg = "Error \"" + std::string(fmterr.what()) + "\" while formatting log message: " + fmt;
         }
-        LogInstance().LogPrintStr(log_msg, logging_function, source_file, source_line);
+        LogInstance().LogPrintStr(log_msg, logging_function, source_file, source_line, col);
     }
 }
 
-#define LogPrintf(...) LogPrintf_(__func__, __FILE__, __LINE__, __VA_ARGS__)
+#define LogPrintf(...) LogPrintf_(__func__, __FILE__, __LINE__, term::HSV_FG<term::hash100(__FILE__), 50, 100>::value, __VA_ARGS__)
 
 // Use a macro instead of a function for conditional logging to prevent
 // evaluating arguments when logging for the category is not enabled.

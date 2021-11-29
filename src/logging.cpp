@@ -247,7 +247,7 @@ namespace BCLog {
     }
 } // namespace BCLog
 
-void BCLog::Logger::LogPrintStr(const std::string& str, const std::string& logging_function, const std::string& source_file, const int source_line)
+void BCLog::Logger::LogPrintStr(const std::string& str, const std::string& logging_function, const std::string& source_file, const int source_line, term::Color col)
 {
     StdLockGuard scoped_lock(m_cs);
     std::string str_prefixed = LogEscapeMessage(str);
@@ -272,7 +272,9 @@ void BCLog::Logger::LogPrintStr(const std::string& str, const std::string& loggi
 
     if (m_print_to_console) {
         // print to console
+        std::cout << col;
         fwrite(str_prefixed.data(), 1, str_prefixed.size(), stdout);
+        std::cout << term::reset();
         fflush(stdout);
     }
     for (const auto& cb : m_print_callbacks) {
