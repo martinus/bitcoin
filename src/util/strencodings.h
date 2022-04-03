@@ -18,6 +18,7 @@
 #include <iterator>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -349,5 +350,47 @@ std::string Capitalize(std::string str);
  *                                 if ToIntegral is false, str is empty, trailing whitespace or overflow
  */
 std::optional<uint64_t> ParseByteUnits(const std::string& str, ByteUnit default_multiplier);
+
+
+enum class AddUppercase : bool {no, yes};
+
+/**
+ * @brief Creates lookup tables for a given alphabet.
+ * 
+ * @tparam T Type in the lookup table
+ * @param default_value Value of any value not in the alphabet
+ * @param alsoToUpper If AddUppercase::yes, copy values from a-z into the values A-Z.
+ * @param alphabet The alphabet, e.g. "0123456789abcdef" to generate a loookup table for hex.
+ * @return constexpr std::array<T, 256> The lookup table.
+ */
+template <typename T>
+constexpr std::array<T, 256> CreateDecodeTable(const T default_value, const AddUppercase addUppercase, const std::string_view alphabet)
+{
+    auto table = std::array<T, 256>{};
+
+    // std::array.fill() is only constexpr in C++20
+    for (auto& x : table) {
+        x = default_value;
+    }
+
+    for (size_t i = 0; i < alphabet.size(); ++i) {
+        auto idx = static_cast<uint8_t>(alphabet[i]);
+        if (table[idx] != default_value) {
+            throw std::logic_error("alphabet contains a letter twice");
+        }
+        table[idx] = static_cast<T>(i);
+    }
+
+    if (addUppercase == AddUppercase::yes) {
+        for (char c = 'a'; c <= 'z'; ++c) {
+            if (table[ToUpper(c)] != default_value) {
+                throw std::logic_error("alphabet already contains uppercase letters");
+            }
+            table[ToUpper(c)] = table[c];
+        }
+    }
+
+    return table;
+}
 
 #endif // BITCOIN_UTIL_STRENCODINGS_H
