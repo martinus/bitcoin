@@ -24,18 +24,17 @@ BEGIN
 */
 usdt:./src/bitcoind:utxocache:add
 {
-  $txid = arg0;
+  $txid = (uint8*)arg0;
   $index = (uint32)arg1;
   $height = (uint32)arg2;
   $value = (int64)arg3;
   $isCoinbase = arg4;
 
   printf("Added   ");
-  $p = $txid + 31;
-  unroll(32) {
-    $b = *(uint8*)$p;
-    printf("%02x", $b);
-    $p-=1;
+  $i = 32;
+  while ($i != 0) {
+    $i--;
+    printf("%02x", *($txid + $i));
   }
 
   printf(":%-6d %16ld %7d %s\n", $index, $value, $height, ($isCoinbase ? "Yes" : "No" ));
@@ -46,18 +45,17 @@ usdt:./src/bitcoind:utxocache:add
 */
 usdt:./src/bitcoind:utxocache:spent
 {
-  $txid = arg0;
+  $txid = (uint8*)arg0;
   $index = (uint32)arg1;
   $height = (uint32)arg2;
   $value = (int64)arg3;
   $isCoinbase = arg4;
 
   printf("Spent   ");
-  $p = $txid + 31;
-  unroll(32) {
-    $b = *(uint8*)$p;
-    printf("%02x", $b);
-    $p-=1;
+  $i = 32;
+  while ($i != 0) {
+    $i--;
+    printf("%02x", *($txid + $i));
   }
 
   printf(":%-6d %16ld %7d %s\n", $index, $value, $height, ($isCoinbase ? "Yes" : "No" ));
@@ -68,18 +66,17 @@ usdt:./src/bitcoind:utxocache:spent
 */
 usdt:./src/bitcoind:utxocache:uncache
 {
-  $txid = arg0;
+  $txid = (uint8*)arg0;
   $index = (uint32)arg1;
   $height = (uint32)arg2;
   $value = (int64)arg3;
   $isCoinbase = arg4;
 
   printf("Uncache ");
-  $p = $txid + 31;
-  unroll(32) {
-    $b = *(uint8*)$p;
-    printf("%02x", $b);
-    $p-=1;
+  $i = 32;
+  while ($i != 0) {
+    $i--;
+    printf("%02x", *($txid + $i));
   }
 
   printf(":%-6d %16ld %7d %s\n", $index, $value, $height, ($isCoinbase ? "Yes" : "No" ));
