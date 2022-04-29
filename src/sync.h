@@ -13,6 +13,7 @@
 
 #include <threadsafety.h>
 #include <util/macros.h>
+#include <util/trace.h>
 
 #include <condition_variable>
 #include <mutex>
@@ -135,15 +136,20 @@ typedef AnnotatedMixin<std::mutex> Mutex;
 template <typename Mutex, typename Base = typename Mutex::UniqueLock>
 class SCOPED_LOCKABLE UniqueLock : public Base
 {
+    const char* m_pszFile{};
+    int m_nLine{};
+
 private:
-    void Enter(const char* pszName, const char* pszFile, int nLine)
+    void Enter(const char* pszName, const char* pszFile, int nLine) __attribute__((noinline))
     {
+        TRACE4(sync, locking, Base::mutex(), pszName, pszFile, nLine);
         EnterCritical(pszName, pszFile, nLine, Base::mutex());
 #ifdef DEBUG_LOCKCONTENTION
         if (Base::try_lock()) return;
         LOG_TIME_MICROS_WITH_CATEGORY(strprintf("lock contention %s, %s:%d", pszName, pszFile, nLine), BCLog::LOCK);
 #endif
         Base::lock();
+        TRACE4(sync, locked, Base::mutex(), pszName, pszFile, nLine);
     }
 
     bool TryEnter(const char* pszName, const char* pszFile, int nLine)
@@ -153,11 +159,13 @@ private:
         if (!Base::owns_lock()) {
             LeaveCritical();
         }
+        TRACE4(sync, locked, Base::mutex(), pszName, pszFile, nLine);
         return Base::owns_lock();
     }
 
 public:
-    UniqueLock(Mutex& mutexIn, const char* pszName, const char* pszFile, int nLine, bool fTry = false) EXCLUSIVE_LOCK_FUNCTION(mutexIn) : Base(mutexIn, std::defer_lock)
+    UniqueLock(Mutex& mutexIn, const char* pszName, const char* pszFile, int nLine, bool fTry = false) EXCLUSIVE_LOCK_FUNCTION(mutexIn) 
+    : Base(mutexIn, std::defer_lock), m_pszFile(pszFile), m_nLine(nLine)
     {
         if (fTry)
             TryEnter(pszName, pszFile, nLine);
@@ -166,6 +174,7 @@ public:
     }
 
     UniqueLock(Mutex* pmutexIn, const char* pszName, const char* pszFile, int nLine, bool fTry = false) EXCLUSIVE_LOCK_FUNCTION(pmutexIn)
+    : m_pszFile(pszFile), m_nLine(nLine)
     {
         if (!pmutexIn) return;
 
@@ -176,10 +185,12 @@ public:
             Enter(pszName, pszFile, nLine);
     }
 
-    ~UniqueLock() UNLOCK_FUNCTION()
+    ~UniqueLock() UNLOCK_FUNCTION() __attribute__((noinline))
     {
-        if (Base::owns_lock())
+        if (Base::owns_lock()) {
+            TRACE3(sync, unlock, Base::mutex(), m_pszFile, m_nLine);
             LeaveCritical();
+        }
     }
 
     operator bool()

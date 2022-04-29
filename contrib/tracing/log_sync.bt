@@ -1,0 +1,68 @@
+#!/usr/bin/env bpftrace
+
+/*
+
+  USAGE:
+
+  bpftrace contrib/tracing/log_sync.bt
+
+  This script requires a 'bitcoind' binary compiled with eBPF support and the
+  'sync' tracepoints. By default, it's assumed that 'bitcoind' is
+  located in './src/bitcoind'. This can be modified in the script below.
+
+  NOTE: requires bpftrace v0.12.0 or above.
+*/
+
+BEGIN
+{
+  printf("timestamp       | Lock                                 | waiting duration  | waiting at                 | blocked by\n");
+  printf("----------------+--------------------------------------+-------------------+----------------------------+---------------------------\n");
+  /* @start = nsecs; */
+}
+
+usdt:./src/bitcoind:sync:locking
+{
+  $mutexAddr = uptr(arg0);
+  $pszName = str(arg1);
+  $sourceLocation = (int32)arg3;
+  @locking_start[tid] = nsecs;
+  @last_to_unlock[$mutexAddr] = (0, 0);
+}
+
+usdt:./src/bitcoind:sync:locked
+{
+  $mutexAddr = uptr(arg0);
+  $pszName = str(arg1);
+  $pszFile = str(arg2);
+  $nLine = (int32)arg3;
+
+  $duration_ns = nsecs - @locking_start[tid];
+  delete(@locking_start[tid]);
+
+  if ($duration_ns > 1000) {
+    $lastLocker = @last_to_unlock[$mutexAddr];
+    if ($lastLocker.0) {
+      printf("%s | %-36s | %15lldµs | %-20s(%4d) | %-20s(%4d)\n",
+        strftime("%H:%M:%S.%f", nsecs),
+        $pszName,
+        $duration_ns/1000,
+        $pszFile,
+        $nLine,
+        str($lastLocker.0),
+        $lastLocker.1);
+    }
+  }
+  delete(@last_to_unlock[$mutexAddr]);
+}
+
+
+usdt:./src/bitcoind:sync:unlock
+{
+  $mutexAddr = uptr(arg0);
+  $pszFile = str(arg1);
+  $nLine = (int32)arg2;
+
+  delete(@last_to_unlock[$mutexAddr]);
+  @last_to_unlock[$mutexAddr] = (arg1, arg2);
+  /* printf("%lld %lx | unlock %s\n", (nsecs - @start), $mutexAddr, $pszName); */
+}
