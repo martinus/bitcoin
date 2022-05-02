@@ -15,8 +15,10 @@
 
 BEGIN
 {
+  /*
   printf("timestamp       | Lock                                  | waiting duration  | waiting at                 | blocked by\n");
   printf("----------------+---------------------------------------+-------------------+----------------------------+---------------------------\n");
+  */
   /* @start = nsecs; */
 }
 
@@ -42,10 +44,20 @@ usdt:./src/bitcoind:sync:locked
   if ($duration_ns > 1000) {
     $lastLocker = @last_to_unlock[$mutexAddr];
     if ($lastLocker.0) {
+      /*
       printf("%s | %-38s| %15lldµs | %-20s(%4d) | %-20s(%4d)\n",
         strftime("%H:%M:%S.%f", nsecs),
         $pszName,
         $duration_ns/1000,
+        $pszFile,
+        $nLine,
+        str($lastLocker.0),
+        $lastLocker.1);
+      */
+      printf("{\"t_ns\":%lld,\"lock\":\"%s\",\"waiting_ns\":%lld,\"waiting_pos\":{\"file\":\"%s\",\"line\":%d},\"blocking_pos\":{\"file\":\"%s\",\"line\":%d}}\n",
+        nsecs,
+        $pszName,
+        $duration_ns,
         $pszFile,
         $nLine,
         str($lastLocker.0),
