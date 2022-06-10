@@ -20,7 +20,8 @@ TEST_UTIL_H = \
   test/util/transaction_utils.h \
   test/util/txmempool.h \
   test/util/validation.h \
-  test/util/wallet.h
+  test/util/wallet.h \
+  test/util/xoroshiro128plusplus.h
 
 libtest_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
 libtest_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
