@@ -235,6 +235,7 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
 bool CCoinsViewCache::Flush() {
     bool fOk = base->BatchWrite(cacheCoins, hashBlock);
     cacheCoins.clear();
+    ReallocateCache();
     cachedCoinsUsage = 0;
     return fOk;
 }
