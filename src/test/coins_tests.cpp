@@ -6,6 +6,7 @@
 #include <coins.h>
 #include <script/standard.h>
 #include <streams.h>
+#include <test/util/poolresourcetester.h>
 #include <test/util/setup_common.h>
 #include <txdb.h>
 #include <uint256.h>
@@ -608,7 +609,8 @@ void GetCoinsMapEntry(const CCoinsMap& map, CAmount& value, char& flags)
 
 void WriteCoinsViewEntry(CCoinsView& view, CAmount value, char flags)
 {
-    CCoinsMap map;
+    CCoinsMapMemoryResource resource;
+    CCoinsMap map{0, CCoinsMap::hasher{}, CCoinsMap::key_equal{}, &resource};
     InsertCoinsMapEntry(map, value, flags);
     BOOST_CHECK(view.BatchWrite(map, {}));
 }
@@ -875,6 +877,31 @@ BOOST_AUTO_TEST_CASE(ccoins_write)
             for (const char parent_flags : parent_value == ABSENT ? ABSENT_FLAGS : FLAGS)
                 for (const char child_flags : child_value == ABSENT ? ABSENT_FLAGS : CLEAN_FLAGS)
                     CheckWriteCoins(parent_value, child_value, parent_value, parent_flags, child_flags, parent_flags);
+}
+
+BOOST_AUTO_TEST_CASE(coins_resource_is_used)
+{
+    CCoinsMapMemoryResource resource;
+    PoolResourceTester::CheckAllDataAccountedFor(resource);
+
+    {
+        CCoinsMap map{0, CCoinsMap::hasher{}, CCoinsMap::key_equal{}, &resource};
+        BOOST_TEST(memusage::DynamicUsage(map) >= resource.ChunkSizeBytes());
+
+        map.reserve(1000);
+
+        // The resource has preallocated a chunk, so we should have space for at several nodes without the need to allocate anything else.
+        const auto usage_before = memusage::DynamicUsage(map);
+
+        COutPoint out_point{};
+        for (size_t i = 0; i < 1000; ++i) {
+            out_point.n = i;
+            map[out_point];
+        }
+        BOOST_TEST(usage_before == memusage::DynamicUsage(map));
+    }
+
+    PoolResourceTester::CheckAllDataAccountedFor(resource);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

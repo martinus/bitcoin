@@ -276,7 +276,9 @@ void CCoinsViewCache::ReallocateCache()
     // Cache should be empty when we're calling this.
     assert(cacheCoins.size() == 0);
     cacheCoins.~CCoinsMap();
-    ::new (&cacheCoins) CCoinsMap();
+    cacheCoinsMemoryResource.~CCoinsMapMemoryResource();
+    ::new (&cacheCoinsMemoryResource) CCoinsMapMemoryResource{};
+    ::new (&cacheCoins) CCoinsMap{0, CCoinsMap::hasher{}, CCoinsMap::key_equal{}, &cacheCoinsMemoryResource};
 }
 
 static const size_t MIN_TRANSACTION_OUTPUT_WEIGHT = WITNESS_SCALE_FACTOR * ::GetSerializeSize(CTxOut(), PROTOCOL_VERSION);
