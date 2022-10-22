@@ -8,6 +8,8 @@
 #include <indirectmap.h>
 #include <prevector.h>
 
+#include <boost/unordered_map.hpp>
+
 #include <cassert>
 #include <cstdlib>
 #include <map>
@@ -162,6 +164,12 @@ static inline size_t DynamicUsage(const std::unordered_set<X, Y>& s)
 
 template<typename X, typename Y, typename Z>
 static inline size_t DynamicUsage(const std::unordered_map<X, Y, Z>& m)
+{
+    return MallocUsage(sizeof(unordered_node<std::pair<const X, Y> >)) * m.size() + MallocUsage(sizeof(void*) * m.bucket_count());
+}
+
+template<typename X, typename Y, typename Z>
+static inline size_t DynamicUsage(const boost::unordered_map<X, Y, Z>& m)
 {
     return MallocUsage(sizeof(unordered_node<std::pair<const X, Y> >)) * m.size() + MallocUsage(sizeof(void*) * m.bucket_count());
 }
