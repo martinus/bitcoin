@@ -9,6 +9,8 @@
 #include <prevector.h>
 #include <support/allocators/pool.h>
 
+#include <boost/unordered_map.hpp>
+
 #include <cassert>
 #include <cstdlib>
 #include <map>
@@ -17,7 +19,6 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
-
 
 namespace memusage
 {
@@ -169,6 +170,23 @@ static inline size_t DynamicUsage(const std::unordered_map<X, Y, Z>& m)
 
 template <class Key, class T, class Hash, class Pred, std::size_t MAX_BLOCK_SIZE_BYTES, std::size_t ALIGN_BYTES>
 static inline size_t DynamicUsage(const std::unordered_map<Key,
+                                                           T,
+                                                           Hash,
+                                                           Pred,
+                                                           PoolAllocator<std::pair<const Key, T>,
+                                                                         MAX_BLOCK_SIZE_BYTES,
+                                                                         ALIGN_BYTES>>& m)
+{
+    auto* pool_resource = m.get_allocator().resource();
+
+    size_t estimated_list_node_size = MallocUsage(sizeof(void*) * 3);
+    size_t usage_resource = estimated_list_node_size * pool_resource->NumAllocatedChunks();
+    size_t usage_chunks = MallocUsage(pool_resource->ChunkSizeBytes()) * pool_resource->NumAllocatedChunks();
+    return usage_resource + usage_chunks + MallocUsage(sizeof(void*) * m.bucket_count());
+}
+
+template <class Key, class T, class Hash, class Pred, std::size_t MAX_BLOCK_SIZE_BYTES, std::size_t ALIGN_BYTES>
+static inline size_t DynamicUsage(const boost::unordered_map<Key,
                                                            T,
                                                            Hash,
                                                            Pred,

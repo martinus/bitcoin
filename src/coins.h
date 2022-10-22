@@ -18,6 +18,8 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include <boost/unordered_map.hpp>
+
 #include <functional>
 #include <unordered_map>
 
@@ -132,7 +134,7 @@ struct CCoinsCacheEntry
     CCoinsCacheEntry(Coin&& coin_, unsigned char flag) : coin(std::move(coin_)), flags(flag) {}
 };
 
-using CCoinsMap = std::unordered_map<COutPoint,
+using CCoinsMap = boost::unordered_map<COutPoint,
                                      CCoinsCacheEntry,
                                      SaltedOutpointHasher,
                                      std::equal_to<COutPoint>,
