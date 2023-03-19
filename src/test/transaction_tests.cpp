@@ -550,7 +550,7 @@ BOOST_AUTO_TEST_CASE(test_big_witness_transaction)
         CScriptCheck check(coins[tx.vin[i].prevout.n].out, tx, i, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS, false, &txdata);
         vChecks.push_back(CScriptCheck());
         check.swap(vChecks.back());
-        control.Add(vChecks);
+        control.Add(std::move(vChecks));
     }
 
     bool controlCheck = control.Wait();
