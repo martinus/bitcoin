@@ -25,10 +25,6 @@ struct DumbCheck {
     {
         return result;
     }
-
-    void swap(DumbCheck& x) noexcept
-    {
-    }
 };
 } // namespace
 
