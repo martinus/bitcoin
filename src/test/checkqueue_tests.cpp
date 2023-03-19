@@ -123,13 +123,28 @@ struct FrozenCleanupCheck {
     static std::atomic<uint64_t> nFrozen;
     static std::condition_variable cv;
     static std::mutex m;
-    // Freezing can't be the default initialized behavior given how the queue
-    // swaps in default initialized Checks.
-    bool should_freeze {false};
+
+    bool should_freeze {true};
+
     bool operator()() const
     {
         return true;
     }
+
+    FrozenCleanupCheck(const FrozenCleanupCheck&) = default;
+    FrozenCleanupCheck& operator=(const FrozenCleanupCheck&) = default;
+
+    // Moved-from objects must not freeze in their destructor
+    FrozenCleanupCheck(FrozenCleanupCheck&& other) noexcept
+    {
+        should_freeze = std::exchange(other.should_freeze, false);
+    }
+    FrozenCleanupCheck& operator=(FrozenCleanupCheck&& other) noexcept
+    {
+        should_freeze = std::exchange(other.should_freeze, false);
+        return *this;
+    }
+
     FrozenCleanupCheck() = default;
     ~FrozenCleanupCheck()
     {
@@ -349,10 +364,6 @@ BOOST_AUTO_TEST_CASE(test_CheckQueue_FrozenCleanup)
     std::thread t0([&]() {
         CCheckQueueControl<FrozenCleanupCheck> control(queue.get());
         std::vector<FrozenCleanupCheck> vChecks(1);
-        // Freezing can't be the default initialized behavior given how the queue
-        // swaps in default initialized Checks (otherwise freezing destructor
-        // would get called twice).
-        vChecks[0].should_freeze = true;
         control.Add(std::move(vChecks));
         bool waitResult = control.Wait(); // Hangs here
         assert(waitResult);
