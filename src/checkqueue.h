@@ -32,21 +32,22 @@ public:
 
     void pop(size_t const n, std::vector<T>& out)
     {
-        auto n_remaining = n;
-        while (!m_data.empty() && n_remaining >= m_data.back().size()) {
-            out.insert(out.end(),
-                       std::make_move_iterator(m_data.back().begin()), std::make_move_iterator(m_data.back().end()));
-            n_remaining -= m_data.back().size();
+        out.clear();
+        out.reserve(n);
 
-            m_data.pop_back();
-        }
+        while (!m_data.empty() && out.size() < n) {
+            auto& v = m_data.back();
 
-        if (!m_data.empty() && n_remaining) {
-            auto const new_end_it = m_data.back().end() - n_remaining;
-            out.insert(out.end(),
-                std::make_move_iterator(new_end_it), std::make_move_iterator(m_data.back().end()));
-            m_data.back().erase(new_end_it, m_data.back().end());
+            auto n_to_take = std::min(n - out.size(), v.size());
+            out.insert(out.end(), 
+                std::make_move_iterator(v.end() - n_to_take), std::make_move_iterator(v.end()));
+            if (n_to_take == v.size()) {
+                m_data.pop_back();
+            } else {
+                v.erase(v.end() - n_to_take, v.end());
+            }
         }
+        m_num_elements -= out.size();
     }
 
 
