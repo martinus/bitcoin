@@ -17,6 +17,65 @@
 template <typename T>
 class CCheckQueueControl;
 
+template <typename T>
+class QueueContainer
+{
+    std::vector<std::vector<T>> m_data{};
+    size_t m_num_elements{};
+
+public:
+    void push(std::vector<T>&& data)
+    {
+        m_num_elements += data.size();
+        m_data.emplace_back(std::move(data));
+    }
+
+    void pop(size_t const n, std::vector<T>& out)
+    {
+        auto n_remaining = n;
+        while (!m_data.empty() && n_remaining >= m_data.back().size()) {
+            out.insert(out.end(),
+                       std::make_move_iterator(m_data.back().begin()), std::make_move_iterator(m_data.back().end()));
+            n_remaining -= m_data.back().size();
+
+            m_data.pop_back();
+        }
+
+        if (!m_data.empty() && n_remaining) {
+            auto const new_end_it = m_data.back().end() - n_remaining;
+            out.insert(out.end(),
+                std::make_move_iterator(new_end_it), std::make_move_iterator(m_data.back().end()));
+            m_data.back().erase(new_end_it, m_data.back().end());
+        }
+    }
+};
+
+template<typename T>
+class BagSimple
+{
+    std::vector<T> m_data{};
+
+public:
+    void push(std::vector<T>&& data) {
+        m_data.insert(m_data.end(), std::make_move_iterator(data.begin()), std::make_move_iterator(data.end()));
+    }
+
+    void pop(size_t n, std::vector<T>& out) {
+        n = std::min(n, m_data.size());
+        auto it = m_data.end() - n;
+        out.assign(std::make_move_iterator(it), std::make_move_iterator(m_data.end()));
+        m_data.erase(it, m_data.end());
+    }
+
+    [[nodiscard]] size_t size() const noexcept {
+        return m_data.size();
+    }
+
+    [[nodiscard]] bool empty() const noexcept {
+        return m_data.empty();
+    }
+};
+
 /**
  * Queue for verifications that have to be performed.
   * The verifications are represented by a type T, which must provide an
@@ -42,7 +101,7 @@ private:
 
     //! The queue of elements to be processed.
     //! As the order of booleans doesn't matter, it is used as a LIFO (stack)
-    std::vector<T> queue GUARDED_BY(m_mutex);
+    QueueContainerSimple<T> queue GUARDED_BY(m_mutex);
 
     //! The number of workers (including the master) that are idle.
     int nIdle GUARDED_BY(m_mutex){0};
@@ -112,9 +171,7 @@ private:
                 // * Try to account for idle jobs which will instantly start helping.
                 // * Don't do batches smaller than 1 (duh), or larger than nBatchSize.
                 nNow = std::max(1U, std::min(nBatchSize, (unsigned int)queue.size() / (nTotal + nIdle + 1)));
-                auto start_it = queue.end() - nNow;
-                vChecks.assign(std::make_move_iterator(start_it), std::make_move_iterator(queue.end()));
-                queue.erase(start_it, queue.end());
+                queue.pop(nNow, vChecks);
                 // Check whether we need to do work at all
                 fOk = fAllOk;
             }
@@ -168,13 +225,14 @@ public:
             return;
         }
 
+        auto const num_checks_added = vChecks.size();
         {
             LOCK(m_mutex);
-            queue.insert(queue.end(), std::make_move_iterator(vChecks.begin()), std::make_move_iterator(vChecks.end()));
-            nTodo += vChecks.size();
+            queue.push(std::move(vChecks));
+            nTodo += num_checks_added;
         }
 
-        if (vChecks.size() == 1) {
+        if (num_checks_added == 1) {
             m_worker_cv.notify_one();
         } else {
             m_worker_cv.notify_all();
