@@ -18,7 +18,7 @@ template <typename T>
 class CCheckQueueControl;
 
 template <typename T>
-class QueueContainer
+class BagComplex
 {
     std::vector<std::vector<T>> m_data{};
     size_t m_num_elements{};
@@ -47,6 +47,15 @@ public:
                 std::make_move_iterator(new_end_it), std::make_move_iterator(m_data.back().end()));
             m_data.back().erase(new_end_it, m_data.back().end());
         }
+    }
+
+
+    [[nodiscard]] size_t size() const noexcept {
+        return m_num_elements;
+    }
+
+    [[nodiscard]] bool empty() const noexcept {
+        return 0 == m_num_elements;
     }
 };
 
@@ -101,7 +110,7 @@ private:
 
     //! The queue of elements to be processed.
     //! As the order of booleans doesn't matter, it is used as a LIFO (stack)
-    QueueContainerSimple<T> queue GUARDED_BY(m_mutex);
+    BagComplex<T> queue GUARDED_BY(m_mutex);
 
     //! The number of workers (including the master) that are idle.
     int nIdle GUARDED_BY(m_mutex){0};
