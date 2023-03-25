@@ -74,6 +74,7 @@ private:
         unsigned int nNow = 0;
         bool fOk = true;
         do {
+            bool notify_another_worker = false;
             {
                 WAIT_LOCK(m_mutex, lock);
                 // first do the clean-up of the previous loop run (allowing us to do it in the same critsect)
@@ -116,6 +117,15 @@ private:
                 queue.erase(start_it, queue.end());
                 // Check whether we need to do work at all
                 fOk = fAllOk;
+
+                // We only need to notify another worker when there is at least one that's idle
+                // and when there is some work left
+                notify_another_worker = nIdle > 0 && !queue.empty();
+            }
+            if (notify_another_worker) {
+                // now that m_mutex has been released we can wake up one worker to acquire the lock,
+                // fetch its tasks, and maybe wake up another one
+                m_worker_cv.notify_one();
             }
             // execute work
             for (T& check : vChecks)
@@ -166,16 +176,17 @@ public:
             return;
         }
 
+        bool notify_worker;
         {
             LOCK(m_mutex);
             queue.insert(queue.end(), std::make_move_iterator(vChecks.begin()), std::make_move_iterator(vChecks.end()));
             nTodo += vChecks.size();
+            // Only notify a worker when one is actually idle
+            notify_worker = nIdle > 0;
         }
 
-        if (vChecks.size() == 1) {
+        if (notify_worker) {
             m_worker_cv.notify_one();
-        } else {
-            m_worker_cv.notify_all();
         }
     }
 
