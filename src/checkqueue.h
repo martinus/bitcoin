@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <optional>
 #include <vector>
 
 template <typename T>
@@ -69,9 +70,8 @@ private:
     bool Loop(bool fMaster) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex)
     {
         std::condition_variable& cond = fMaster ? m_master_cv : m_worker_cv;
-        std::vector<T> vChecks;
-        vChecks.reserve(nBatchSize);
-        unsigned int nNow = 0;
+        std::optional<T> vCheck;
+        bool nNow = false;
         bool fOk = true;
         do {
             bool notify_another_worker = false;
@@ -80,7 +80,7 @@ private:
                 // first do the clean-up of the previous loop run (allowing us to do it in the same critsect)
                 if (nNow) {
                     fAllOk &= fOk;
-                    nTodo -= nNow;
+                    --nTodo;
                     if (nTodo == 0 && !fMaster)
                         // We processed the last element; inform the master it can exit and return the result
                         m_master_cv.notify_one();
@@ -111,10 +111,9 @@ private:
                 //   all workers finish approximately simultaneously.
                 // * Try to account for idle jobs which will instantly start helping.
                 // * Don't do batches smaller than 1 (duh), or larger than nBatchSize.
-                nNow = std::max(1U, std::min(nBatchSize, (unsigned int)queue.size() / (nTotal + nIdle + 1)));
-                auto start_it = queue.end() - nNow;
-                vChecks.assign(std::make_move_iterator(start_it), std::make_move_iterator(queue.end()));
-                queue.erase(start_it, queue.end());
+                vCheck = std::move(queue.back());
+                nNow = true;
+                queue.pop_back();
                 // Check whether we need to do work at all
                 fOk = fAllOk;
 
@@ -128,10 +127,9 @@ private:
                 m_worker_cv.notify_one();
             }
             // execute work
-            for (T& check : vChecks)
-                if (fOk)
-                    fOk = check();
-            vChecks.clear();
+            if (fOk)
+                fOk = (*vCheck)();
+            vCheck.reset();
         } while (true);
     }
 
