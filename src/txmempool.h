@@ -27,6 +27,7 @@
 #include <policy/packages.h>
 #include <primitives/transaction.h>
 #include <random.h>
+#include <support/allocators/pool.h>
 #include <sync.h>
 #include <util/epochguard.h>
 #include <util/hasher.h>
@@ -343,8 +344,8 @@ protected:
     CFeeRate GetMinFee(size_t sizelimit) const;
     static const int ROLLING_FEE_HALFLIFE = 60 * 60 * 12;
 
-public:
-    typedef boost::multi_index_container<
+    template<typename Allocator>
+    using IndexedTransactionSetWithAllocator = boost::multi_index_container<
         CTxMemPoolEntry,
         boost::multi_index::indexed_by<
             // sorted by txid
@@ -373,8 +374,14 @@ public:
                 boost::multi_index::identity<CTxMemPoolEntry>,
                 CompareTxMemPoolEntryByAncestorFee
             >
-        >
-    > indexed_transaction_set;
+        >,
+        Allocator
+    >;
+    using IndexedTransactionSetFinalNodeType = IndexedTransactionSetWithAllocator<std::allocator<CTxMemPoolEntry>>::final_node_type;
+
+public:
+    using indexed_transaction_set = IndexedTransactionSetWithAllocator<
+        PoolAllocator<CTxMemPoolEntry, sizeof(IndexedTransactionSetFinalNodeType), alignof(IndexedTransactionSetFinalNodeType)>>;
 
     /**
      * This mutex needs to be locked when accessing `mapTx` or other members
@@ -404,6 +411,7 @@ public:
      * the mempool is consistent with the new chain tip and fully populated.
      */
     mutable RecursiveMutex cs;
+    indexed_transaction_set::allocator_type::ResourceType m_mapTxResource GUARDED_BY(cs){};
     indexed_transaction_set mapTx GUARDED_BY(cs);
 
     using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
