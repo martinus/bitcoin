@@ -341,11 +341,9 @@ protected:
     bool m_load_tried GUARDED_BY(cs){false};
 
     CFeeRate GetMinFee(size_t sizelimit) const;
+    static const int ROLLING_FEE_HALFLIFE = 60 * 60 * 12;
 
 public:
-
-    static const int ROLLING_FEE_HALFLIFE = 60 * 60 * 12; // public only for testing
-
     typedef boost::multi_index_container<
         CTxMemPoolEntry,
         boost::multi_index::indexed_by<
