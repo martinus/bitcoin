@@ -8,11 +8,16 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <cstdlib>
+#include <iostream>
 #include <list>
 #include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
+
+#include <execinfo.h>
+#include <stdio.h>
 
 /**
  * A memory resource similar to std::pmr::unsynchronized_pool_resource, but
@@ -96,6 +101,11 @@ class PoolResource final
     const size_t m_chunk_size_bytes;
 
     /**
+     * Count number of allocated bytes
+     */
+    size_t m_numBytes{};
+
+    /**
      * Contains all allocated pools of memory, used to free the data in the destructor.
      */
     std::list<std::byte*> m_allocated_chunks{};
@@ -158,7 +168,7 @@ class PoolResource final
             PlacementAddToList(m_available_memory_it, m_free_lists[remaining_available_bytes / ELEM_ALIGN_BYTES]);
         }
 
-        void* storage = ::operator new (m_chunk_size_bytes, std::align_val_t{ELEM_ALIGN_BYTES});
+        void* storage = ::operator new(m_chunk_size_bytes, std::align_val_t{ELEM_ALIGN_BYTES});
         m_available_memory_it = new (storage) std::byte[m_chunk_size_bytes];
         m_available_memory_end = m_available_memory_it + m_chunk_size_bytes;
         m_allocated_chunks.emplace_back(m_available_memory_it);
@@ -194,14 +204,30 @@ public:
     PoolResource(PoolResource&&) = delete;
     PoolResource& operator=(PoolResource&&) = delete;
 
+    static void PrintStackTrace()
+    {
+        void* callstack[128];
+        auto frames = backtrace(callstack, 128);
+        char** strs = backtrace_symbols(callstack, frames);
+        for (int i = 0; i < frames; ++i) {
+            std::cout << strs[i] << std::endl;
+        }
+        free(strs);
+    }
+
     /**
      * Deallocates all memory allocated associated with the memory resource.
      */
     ~PoolResource()
     {
+        if (m_numBytes != 0) {
+            std::cout << "Got " << m_numBytes << " bytes left!" << std::endl;
+            PrintStackTrace();
+            assert(m_numBytes == 0);
+        }
         for (std::byte* chunk : m_allocated_chunks) {
             std::destroy(chunk, chunk + m_chunk_size_bytes);
-            ::operator delete ((void*)chunk, std::align_val_t{ELEM_ALIGN_BYTES});
+            ::operator delete((void*)chunk, std::align_val_t{ELEM_ALIGN_BYTES});
         }
     }
 
@@ -211,6 +237,7 @@ public:
      */
     void* Allocate(std::size_t bytes, std::size_t alignment)
     {
+        m_numBytes += bytes;
         if (IsFreeListUsable(bytes, alignment)) {
             const std::size_t num_alignments = NumElemAlignBytes(bytes);
             if (nullptr != m_free_lists[num_alignments]) {
@@ -232,7 +259,7 @@ public:
         }
 
         // Can't use the pool => use operator new()
-        return ::operator new (bytes, std::align_val_t{alignment});
+        return ::operator new(bytes, std::align_val_t{alignment});
     }
 
     /**
@@ -240,6 +267,7 @@ public:
      */
     void Deallocate(void* p, std::size_t bytes, std::size_t alignment) noexcept
     {
+        m_numBytes -= bytes;
         if (IsFreeListUsable(bytes, alignment)) {
             const std::size_t num_alignments = NumElemAlignBytes(bytes);
             // put the memory block into the linked list. We can placement construct the FreeList
@@ -247,7 +275,7 @@ public:
             PlacementAddToList(p, m_free_lists[num_alignments]);
         } else {
             // Can't use the pool => forward deallocation to ::operator delete().
-            ::operator delete (p, std::align_val_t{alignment});
+            ::operator delete(p, std::align_val_t{alignment});
         }
     }
 

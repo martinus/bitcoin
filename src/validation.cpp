@@ -565,7 +565,13 @@ private:
     // All the intermediate state that gets passed between the various levels
     // of checking a given transaction.
     struct Workspace {
-        explicit Workspace(const CTransactionRef& ptx) : m_ptx(ptx), m_hash(ptx->GetHash()) {}
+        explicit Workspace(CTxMemPool::setEntries::allocator_type::ResourceType& rt, const CTransactionRef& ptx)
+            : m_iters_conflicting{&rt},
+              m_all_conflicting{&rt},
+              m_ancestors{&rt},
+              m_ptx(ptx),
+              m_hash(ptx->GetHash()) {}
+
         /** Txids of mempool transactions that this transaction directly conflicts with. */
         std::set<uint256> m_conflicts;
         /** Iterators to mempool entries that this transaction directly conflicts with. */
@@ -857,7 +863,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // feerate later.
     if (!bypass_limits && !args.m_package_feerates && !CheckFeeRate(ws.m_vsize, ws.m_modified_fees, state)) return false;
 
-    ws.m_iters_conflicting = m_pool.GetIterSet(ws.m_conflicts);
+    ws.m_iters_conflicting = m_pool.GetIterSet(ws.m_iters_conflicting.get_allocator().resource(), ws.m_conflicts);
     // Calculate in-mempool ancestors, up to a limit.
     if (ws.m_conflicts.size() == 1) {
         // In general, when we receive an RBF transaction with mempool conflicts, we want to know whether we
@@ -894,7 +900,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         m_limits.descendant_size_vbytes += conflict->GetSizeWithDescendants();
     }
 
-    auto ancestors{m_pool.CalculateMemPoolAncestors(*entry, m_limits)};
+    auto ancestors{m_pool.CalculateMemPoolAncestors(*entry, m_limits, *ws.m_iters_conflicting.get_allocator().resource())};
     if (!ancestors) {
         // If CalculateMemPoolAncestors fails second time, we want the original error string.
         // Contracting/payment channels CPFP carve-out:
@@ -918,7 +924,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         if (ws.m_vsize > EXTRA_DESCENDANT_TX_SIZE_LIMIT) {
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "too-long-mempool-chain", error_message);
         }
-        ancestors = m_pool.CalculateMemPoolAncestors(*entry, cpfp_carve_out_limits);
+        ancestors = m_pool.CalculateMemPoolAncestors(*entry, cpfp_carve_out_limits, *ws.m_iters_conflicting.get_allocator().resource());
         if (!ancestors) return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "too-long-mempool-chain", error_message);
     }
 
@@ -1148,7 +1154,7 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
         // Re-calculate mempool ancestors to call addUnchecked(). They may have changed since the
         // last calculation done in PreChecks, since package ancestors have already been submitted.
         {
-            auto ancestors{m_pool.CalculateMemPoolAncestors(*ws.m_entry, m_limits)};
+            auto ancestors{m_pool.CalculateMemPoolAncestors(*ws.m_entry, m_limits, *ws.m_iters_conflicting.get_allocator().resource())};
             if(!ancestors) {
                 results.emplace(ws.m_ptx->GetWitnessHash(), MempoolAcceptResult::Failure(ws.m_state));
                 // Since PreChecks() and PackageMempoolChecks() both enforce limits, this should never fail.
@@ -1210,7 +1216,8 @@ MempoolAcceptResult MemPoolAccept::AcceptSingleTransaction(const CTransactionRef
     AssertLockHeld(cs_main);
     LOCK(m_pool.cs); // mempool "read lock" (held through GetMainSignals().TransactionAddedToMempool())
 
-    Workspace ws(ptx);
+    CTxMemPool::setEntries::allocator_type::ResourceType resource{};
+    Workspace ws(resource, ptx);
 
     if (!PreChecks(args, ws)) return MempoolAcceptResult::Failure(ws.m_state);
 
@@ -1246,10 +1253,11 @@ PackageMempoolAcceptResult MemPoolAccept::AcceptMultipleTransactions(const std::
     PackageValidationState package_state;
     if (!CheckPackage(txns, package_state)) return PackageMempoolAcceptResult(package_state, {});
 
+    CTxMemPool::setEntries::allocator_type::ResourceType resource{};
     std::vector<Workspace> workspaces{};
     workspaces.reserve(txns.size());
     std::transform(txns.cbegin(), txns.cend(), std::back_inserter(workspaces),
-                   [](const auto& tx) { return Workspace(tx); });
+                   [&resource](const auto& tx) { return Workspace(resource, tx); });
     std::map<const uint256, const MempoolAcceptResult> results;
 
     LOCK(m_pool.cs);

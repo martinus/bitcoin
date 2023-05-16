@@ -679,7 +679,8 @@ public:
         CTxMemPoolEntry entry(tx, 0, 0, 0, false, 0, lp);
         const CTxMemPool::Limits& limits{m_node.mempool->m_limits};
         LOCK(m_node.mempool->cs);
-        return m_node.mempool->CalculateMemPoolAncestors(entry, limits).has_value();
+        CTxMemPool::setEntries::allocator_type::ResourceType resource{};
+        return m_node.mempool->CalculateMemPoolAncestors(entry, limits, resource).has_value();
     }
     CFeeRate estimateSmartFee(int num_blocks, bool conservative, FeeCalculation* calc) override
     {

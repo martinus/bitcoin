@@ -465,8 +465,8 @@ static RPCHelpMan getmempoolancestors()
     if (it == mempool.mapTx.end()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
-
-    auto ancestors{mempool.AssumeCalculateMemPoolAncestors(__func__, *it, CTxMemPool::Limits::NoLimits(), /*fSearchForParents=*/false)};
+    CTxMemPool::setEntries::allocator_type::ResourceType resource{};
+    auto ancestors{mempool.AssumeCalculateMemPoolAncestors(__func__, resource, *it, CTxMemPool::Limits::NoLimits(), /*fSearchForParents=*/false)};
 
     if (!fVerbose) {
         UniValue o(UniValue::VARR);
@@ -527,7 +527,8 @@ static RPCHelpMan getmempooldescendants()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not in mempool");
     }
 
-    CTxMemPool::setEntries setDescendants;
+    CTxMemPool::setEntries::allocator_type::ResourceType resource{};
+    CTxMemPool::setEntries setDescendants{&resource};
     mempool.CalculateDescendants(it, setDescendants);
     // CTxMemPool::CalculateDescendants will include the given tx
     setDescendants.erase(it);

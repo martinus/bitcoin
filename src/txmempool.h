@@ -378,10 +378,11 @@ protected:
         Allocator
     >;
     using IndexedTransactionSetFinalNodeType = IndexedTransactionSetWithAllocator<std::allocator<CTxMemPoolEntry>>::final_node_type;
+    template<typename T>
+    using Alloc = PoolAllocator<T, sizeof(IndexedTransactionSetFinalNodeType), alignof(IndexedTransactionSetFinalNodeType)>;
 
 public:
-    using indexed_transaction_set = IndexedTransactionSetWithAllocator<
-        PoolAllocator<CTxMemPoolEntry, sizeof(IndexedTransactionSetFinalNodeType), alignof(IndexedTransactionSetFinalNodeType)>>;
+    using indexed_transaction_set = IndexedTransactionSetWithAllocator<Alloc<CTxMemPoolEntry>>;
 
     /**
      * This mutex needs to be locked when accessing `mapTx` or other members
@@ -417,13 +418,13 @@ public:
     using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
     std::vector<std::pair<uint256, txiter>> vTxHashes GUARDED_BY(cs); //!< All tx witness hashes/entries in mapTx, in random order
 
-    typedef std::set<txiter, CompareIteratorByHash> setEntries;
+    typedef std::set<txiter, CompareIteratorByHash, Alloc<txiter>> setEntries;
 
     using Limits = kernel::MemPoolLimits;
 
     uint64_t CalculateDescendantMaximum(txiter entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 private:
-    typedef std::map<txiter, setEntries, CompareIteratorByHash> cacheMap;
+    typedef std::map<txiter, setEntries, CompareIteratorByHash, Alloc<std::pair<const txiter, setEntries>>> cacheMap;
 
 
     void UpdateParent(txiter entry, txiter parent, bool add) EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -451,8 +452,8 @@ private:
     util::Result<setEntries> CalculateAncestorsAndCheckLimits(size_t entry_size,
                                                               size_t entry_count,
                                                               CTxMemPoolEntry::Parents &staged_ancestors,
-                                                              const Limits& limits
-                                                              ) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+                                                              const Limits& limits,
+                                                              setEntries::allocator_type::ResourceType& resource) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
     indirectmap<COutPoint, const CTransaction*> mapNextTx GUARDED_BY(cs);
@@ -547,7 +548,7 @@ public:
     /** Translate a set of hashes into a set of pool iterators to avoid repeated lookups.
      * Does not require that all of the hashes correspond to actual transactions in the mempool,
      * only returns the ones that exist. */
-    setEntries GetIterSet(const std::set<uint256>& hashes) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    setEntries GetIterSet(setEntries::allocator_type::ResourceType* resource, const std::set<uint256>& hashes) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Translate a list of hashes into a list of mempool iterators to avoid repeated lookups.
      * The nth element in txids becomes the nth element in the returned vector. If any of the txids
@@ -592,6 +593,7 @@ public:
      */
     util::Result<setEntries> CalculateMemPoolAncestors(const CTxMemPoolEntry& entry,
                                    const Limits& limits,
+                                   setEntries::allocator_type::ResourceType& resource,
                                    bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /**
@@ -610,6 +612,7 @@ public:
      */
     setEntries AssumeCalculateMemPoolAncestors(
         std::string_view calling_fn_name,
+        CTxMemPool::setEntries::allocator_type::ResourceType& resource,
         const CTxMemPoolEntry &entry,
         const Limits& limits,
         bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);

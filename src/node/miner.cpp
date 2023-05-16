@@ -57,6 +57,7 @@ void RegenerateCommitments(CBlock& block, ChainstateManager& chainman)
 }
 
 static BlockAssembler::Options ClampOptions(BlockAssembler::Options options)
+
 {
     // Limit weight to between 4K and DEFAULT_BLOCK_MAX_WEIGHT for sanity:
     options.nBlockMaxWeight = std::clamp<size_t>(options.nBlockMaxWeight, 4000, DEFAULT_BLOCK_MAX_WEIGHT);
@@ -248,8 +249,9 @@ static int UpdatePackagesForAdded(const CTxMemPool& mempool,
     AssertLockHeld(mempool.cs);
 
     int nDescendantsUpdated = 0;
+    CTxMemPool::setEntries::allocator_type::ResourceType resource{};
     for (CTxMemPool::txiter it : alreadyAdded) {
-        CTxMemPool::setEntries descendants;
+        CTxMemPool::setEntries descendants{&resource};
         mempool.CalculateDescendants(it, descendants);
         // Insert all descendants (not yet in block) into the modified set
         for (CTxMemPool::txiter desc : descendants) {
@@ -297,7 +299,8 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
     // because some of their txs are already in the block
     indexed_modified_transaction_set mapModifiedTx;
     // Keep track of entries that failed inclusion, to avoid duplicate work
-    CTxMemPool::setEntries failedTx;
+    CTxMemPool::setEntries::allocator_type::ResourceType resource{};
+    CTxMemPool::setEntries failedTx{&resource};
 
     CTxMemPool::indexed_transaction_set::index<ancestor_score>::type::iterator mi = mempool.mapTx.get<ancestor_score>().begin();
     CTxMemPool::txiter iter;
@@ -394,7 +397,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
             continue;
         }
 
-        auto ancestors{mempool.AssumeCalculateMemPoolAncestors(__func__, *iter, CTxMemPool::Limits::NoLimits(), /*fSearchForParents=*/false)};
+        auto ancestors{mempool.AssumeCalculateMemPoolAncestors(__func__, resource, *iter, CTxMemPool::Limits::NoLimits(), /*fSearchForParents=*/false)};
 
         onlyUnconfirmed(ancestors);
         ancestors.insert(iter);

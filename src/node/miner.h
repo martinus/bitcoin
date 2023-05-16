@@ -141,7 +141,8 @@ private:
     uint64_t nBlockTx;
     uint64_t nBlockSigOpsCost;
     CAmount nFees;
-    CTxMemPool::setEntries inBlock;
+    CTxMemPool::setEntries::allocator_type::ResourceType m_resource{};
+    CTxMemPool::setEntries inBlock{&m_resource};
 
     // Chain context for the block
     int nHeight;

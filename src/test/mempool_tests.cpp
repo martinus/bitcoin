@@ -191,7 +191,8 @@ BOOST_AUTO_TEST_CASE(MempoolIndexingTest)
     sortedOrder.insert(sortedOrder.begin(), tx6.GetHash().ToString());
     CheckSort<descendant_score>(pool, sortedOrder);
 
-    CTxMemPool::setEntries setAncestors;
+    CTxMemPool::setEntries::allocator_type::ResourceType resource{};
+    CTxMemPool::setEntries setAncestors{&resource};
     setAncestors.insert(pool.mapTx.find(tx6.GetHash()));
     CMutableTransaction tx7 = CMutableTransaction();
     tx7.vin.resize(1);
@@ -203,7 +204,7 @@ BOOST_AUTO_TEST_CASE(MempoolIndexingTest)
     tx7.vout[1].scriptPubKey = CScript() << OP_11 << OP_EQUAL;
     tx7.vout[1].nValue = 1 * COIN;
 
-    auto ancestors_calculated{pool.CalculateMemPoolAncestors(entry.Fee(2000000LL).FromTx(tx7), CTxMemPool::Limits::NoLimits())};
+    auto ancestors_calculated{pool.CalculateMemPoolAncestors(entry.Fee(2000000LL).FromTx(tx7), CTxMemPool::Limits::NoLimits(), resource)};
     BOOST_REQUIRE(ancestors_calculated.has_value());
     BOOST_CHECK(*ancestors_calculated == setAncestors);
 
@@ -261,7 +262,7 @@ BOOST_AUTO_TEST_CASE(MempoolIndexingTest)
     tx10.vout[0].scriptPubKey = CScript() << OP_11 << OP_EQUAL;
     tx10.vout[0].nValue = 10 * COIN;
 
-    ancestors_calculated = pool.CalculateMemPoolAncestors(entry.Fee(200000LL).Time(NodeSeconds{4s}).FromTx(tx10), CTxMemPool::Limits::NoLimits());
+    ancestors_calculated = pool.CalculateMemPoolAncestors(entry.Fee(200000LL).Time(NodeSeconds{4s}).FromTx(tx10), CTxMemPool::Limits::NoLimits(), resource);
     BOOST_REQUIRE(ancestors_calculated);
     BOOST_CHECK(*ancestors_calculated == setAncestors);
 
