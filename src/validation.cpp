@@ -1000,8 +1000,10 @@ bool MemPoolAccept::PackageMempoolChecks(const std::vector<CTransactionRef>& txn
     assert(std::all_of(txns.cbegin(), txns.cend(), [this](const auto& tx)
                        { return !m_pool.exists(GenTxid::Txid(tx->GetHash()));}));
 
+
+    CTxMemPool::setEntries::allocator_type::ResourceType resource{};
     std::string err_string;
-    if (!m_pool.CheckPackageLimits(txns, m_limits, err_string)) {
+    if (!m_pool.CheckPackageLimits(txns, m_limits, resource, err_string)) {
         // This is a package-wide error, separate from an individual transaction error.
         return package_state.Invalid(PackageValidationResult::PCKG_POLICY, "package-mempool-limits", err_string);
     }

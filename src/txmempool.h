@@ -412,7 +412,7 @@ public:
      * the mempool is consistent with the new chain tip and fully populated.
      */
     mutable RecursiveMutex cs;
-    indexed_transaction_set::allocator_type::ResourceType m_mapTxResource GUARDED_BY(cs){};
+    mutable indexed_transaction_set::allocator_type::ResourceType m_mapTxResource GUARDED_BY(cs){};
     indexed_transaction_set mapTx GUARDED_BY(cs);
 
     using txiter = indexed_transaction_set::nth_index<0>::type::const_iterator;
@@ -637,6 +637,7 @@ public:
      */
     bool CheckPackageLimits(const Package& package,
                             const Limits& limits,
+                            setEntries::allocator_type::ResourceType& resource,
                             std::string &errString) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /** Populate setDescendants with all in-mempool descendants of hash.

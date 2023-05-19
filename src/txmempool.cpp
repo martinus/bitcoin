@@ -200,6 +200,7 @@ util::Result<CTxMemPool::setEntries> CTxMemPool::CalculateAncestorsAndCheckLimit
 
 bool CTxMemPool::CheckPackageLimits(const Package& package,
                                     const Limits& limits,
+                                    setEntries::allocator_type::ResourceType& resource,
                                     std::string &errString) const
 {
     CTxMemPoolEntry::Parents staged_ancestors;
@@ -220,7 +221,6 @@ bool CTxMemPool::CheckPackageLimits(const Package& package,
     // When multiple transactions are passed in, the ancestors and descendants of all transactions
     // considered together must be within limits even if they are not interdependent. This may be
     // stricter than the limits for each individual transaction.
-    setEntries::allocator_type::ResourceType resource{};
     const auto ancestors{CalculateAncestorsAndCheckLimits(total_size, package.size(),
                                                           staged_ancestors, limits, resource)};
     // It's possible to overestimate the ancestor/descendant totals.
@@ -671,7 +671,6 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
     uint64_t prev_ancestor_count{0};
 
     CCoinsViewCache mempoolDuplicate(const_cast<CCoinsViewCache*>(&active_coins_tip));
-    setEntries::allocator_type::ResourceType resource{};
 
     for (const auto& it : GetSortedDepthAndScore()) {
         checkTotal += it->GetTxSize();
@@ -704,7 +703,7 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
         assert(setParentCheck.size() == it->GetMemPoolParentsConst().size());
         assert(std::equal(setParentCheck.begin(), setParentCheck.end(), it->GetMemPoolParentsConst().begin(), comp));
         // Verify ancestor state is correct.
-        auto ancestors{AssumeCalculateMemPoolAncestors(__func__, resource, *it, Limits::NoLimits())};
+        auto ancestors{AssumeCalculateMemPoolAncestors(__func__, m_mapTxResource, *it, Limits::NoLimits())};
         uint64_t nCountCheck = ancestors.size() + 1;
         int32_t nSizeCheck = it->GetTxSize();
         CAmount nFeesCheck = it->GetModifiedFee();
@@ -1150,8 +1149,7 @@ void CTxMemPool::TrimToSize(size_t sizelimit, std::vector<COutPoint>* pvNoSpends
 uint64_t CTxMemPool::CalculateDescendantMaximum(txiter entry) const {
     // find parent with highest descendant count
     std::vector<txiter> candidates;
-    setEntries::allocator_type::ResourceType resource{};
-    setEntries counted{&resource};
+    setEntries counted{&m_mapTxResource};
     candidates.push_back(entry);
     uint64_t maximum = 0;
     while (candidates.size()) {
