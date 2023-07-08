@@ -1801,10 +1801,9 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
         // spent being checked as a part of CScriptCheck.
 
         // Verify signature
-        CScriptCheck check(txdata.m_spent_outputs[i], tx, i, flags, cacheSigStore, &txdata);
         if (pvChecks) {
-            pvChecks->emplace_back(std::move(check));
-        } else if (!check()) {
+            pvChecks->emplace_back(txdata.m_spent_outputs[i], tx, i, flags, cacheSigStore, &txdata);
+        } else if (auto check = CScriptCheck(txdata.m_spent_outputs[i], tx, i, flags, cacheSigStore, &txdata); !check()) {
             if (flags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) {
                 // Check whether the failure was caused by a
                 // non-mandatory script verification check, such as
