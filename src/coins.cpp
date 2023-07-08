@@ -201,7 +201,7 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
         } else if (isInserted) {
             // Create the coin in the parent cache, move the data up
             // and mark it as dirty.
-            CCoinsCacheEntry& entry = cacheCoins[c.first];
+            CCoinsCacheEntry& entry = itUs->second;
             if (erase) {
                 // The `move` call here is purely an optimization; we rely on the
                 // `mapCoins.erase` call in the `for` expression to actually remove
