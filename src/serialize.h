@@ -612,18 +612,18 @@ struct VectorFormatter
         Formatter formatter;
         v.clear();
         size_t size = ReadCompactSize(s);
-        size_t allocated = 0;
-        while (allocated < size) {
-            // For DoS prevention, do not blindly allocate as much as the stream claims to contain.
-            // Instead, allocate in 5MiB batches, so that an attacker actually needs to provide
-            // X MiB of data to make us allocate X+5 Mib.
-            static_assert(sizeof(typename V::value_type) <= MAX_VECTOR_ALLOCATE, "Vector element size too large");
-            allocated = std::min(size, allocated + MAX_VECTOR_ALLOCATE / sizeof(typename V::value_type));
-            v.reserve(allocated);
-            while (v.size() < allocated) {
-                v.emplace_back();
-                formatter.Unser(s, v.back());
-            }
+
+        size_t reserve_size = size;
+        while (reserve_size > MAX_VECTOR_ALLOCATE / sizeof(typename V::value_type)) {
+            reserve_size /= 2;
+        }
+        if (reserve_size < size) {
+            ++reserve_size;
+        }
+        v.reserve(reserve_size);
+
+        for (size_t i=0; i<size; ++i) {
+            formatter.Unser(s, v.emplace_back());
         }
     };
 };
