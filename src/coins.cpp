@@ -8,6 +8,7 @@
 #include <logging.h>
 #include <random.h>
 #include <util/trace.h>
+#include <utility>
 #include <version.h>
 
 bool CCoinsView::GetCoin(const COutPoint &outpoint, Coin &coin) const { return false; }
@@ -42,6 +43,25 @@ size_t CCoinsViewCache::DynamicMemoryUsage() const {
 }
 
 CCoinsMap::iterator CCoinsViewCache::FetchCoin(const COutPoint &outpoint) const {
+    auto [it, isInserted] = cacheCoins.try_emplace(outpoint);
+    if (!isInserted) {
+        return it;
+    }
+
+    if (!base->GetCoin(outpoint, it->second.coin)) {
+        cacheCoins.erase(it);
+        return cacheCoins.end();
+    }
+
+    if (it->second.coin.IsSpent()) {
+        // The parent only has an empty entry for this outpoint; we can consider our
+        // version as fresh.
+        it->second.flags = CCoinsCacheEntry::FRESH;
+    }
+    cachedCoinsUsage += it->second.coin.DynamicMemoryUsage();
+    return it;
+
+#if 0
     CCoinsMap::iterator it = cacheCoins.find(outpoint);
     if (it != cacheCoins.end())
         return it;
@@ -56,6 +76,7 @@ CCoinsMap::iterator CCoinsViewCache::FetchCoin(const COutPoint &outpoint) const 
     }
     cachedCoinsUsage += ret->second.coin.DynamicMemoryUsage();
     return ret;
+#endif
 }
 
 bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
