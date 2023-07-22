@@ -2,11 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "support/allocators/pool.h"
 #include <consensus/tx_check.h>
 
 #include <consensus/amount.h>
 #include <primitives/transaction.h>
 #include <consensus/validation.h>
+#include <util/hasher.h>
+
+#include <unordered_set>
 
 bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 {
@@ -37,7 +41,17 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     // of a tx as spent, it does not check if the tx has duplicate inputs.
     // Failure to run this check will result in either a crash or an inflation bug, depending on the implementation of
     // the underlying coins database.
-    std::set<COutPoint> vInOutPoints;
+    using M = std::unordered_set<
+        COutPoint,
+        SaltedOutpointHasher,
+        std::equal_to<COutPoint>,
+        PoolAllocator<
+            COutPoint,
+            sizeof(COutPoint) + 4 + sizeof(void*) * 4,
+            alignof(COutPoint)>>;
+    auto resource = M::allocator_type::ResourceType();
+    auto vInOutPoints = M(0, SaltedOutpointHasher(true), std::equal_to<COutPoint>{}, &resource);
+    vInOutPoints.reserve(tx.vin.size());
     for (const auto& txin : tx.vin) {
         if (!vInOutPoints.insert(txin.prevout).second)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-duplicate");
