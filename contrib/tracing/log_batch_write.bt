@@ -1,0 +1,53 @@
+#!/usr/bin/env bpftrace
+
+/*
+
+  USAGE:
+
+  bpftrace contrib/tracing/log_batch_write.bt
+
+  This script requires a 'bitcoind' binary compiled with eBPF support and the
+  'utxocache' tracepoints. By default, it's assumed that 'bitcoind' is
+  located in './src/bitcoind'. This can be modified in the script below.
+
+  NOTE: requires bpftrace v0.12.0 or above.
+*/
+
+BEGIN
+{
+  @totalCoinsViewCacheNs = (uint64)0;
+  @totalCoinsViewCacheCount = (uint64)0;
+
+  @totalCoinsViewDBNs = (uint64)0;
+  @totalCoinsViewDBCount = (uint64)0;
+}
+
+END
+{
+  printf("\n");
+  printf("%ld ns total, %ld count coins_view_cache\n", @totalCoinsViewCacheNs, @totalCoinsViewCacheCount);
+  printf("%ld ns total, %d count coins_view_db\n", @totalCoinsViewDBNs, @totalCoinsViewDBCount);
+}
+
+usdt:./src/bitcoind:coins_view_cache:batch_write_start
+{
+  @totalCoinsViewCacheNs -= nsecs;
+}
+usdt:./src/bitcoind:coins_view_cache:batch_write_end
+{
+  @totalCoinsViewCacheNs += nsecs;
+  ++@totalCoinsViewCacheCount;
+}
+
+
+usdt:./src/bitcoind:coins_view_db:batch_write_start
+{
+  @totalCoinsViewDBNs -= nsecs;
+}
+usdt:./src/bitcoind:coins_view_db:batch_write_end
+{
+  @totalCoinsViewDBNs += nsecs;
+  ++@totalCoinsViewDBCount;
+}
+
+
