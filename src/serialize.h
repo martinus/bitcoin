@@ -1039,28 +1039,16 @@ public:
     int GetVersion() const { return nVersion; }
 };
 
-template<typename Stream>
-void SerializeMany(Stream& s)
+template<typename Stream, typename... Args>
+void SerializeMany(Stream& s, const Args&... args)
 {
+    (::Serialize(s, args), ...);
 }
 
-template<typename Stream, typename Arg, typename... Args>
-void SerializeMany(Stream& s, const Arg& arg, const Args&... args)
+template<typename Stream, typename... Args>
+inline void UnserializeMany(Stream& s, Args&&... args)
 {
-    ::Serialize(s, arg);
-    ::SerializeMany(s, args...);
-}
-
-template<typename Stream>
-inline void UnserializeMany(Stream& s)
-{
-}
-
-template<typename Stream, typename Arg, typename... Args>
-inline void UnserializeMany(Stream& s, Arg&& arg, Args&&... args)
-{
-    ::Unserialize(s, arg);
-    ::UnserializeMany(s, args...);
+    (::Unserialize(s, args), ...);
 }
 
 template<typename Stream, typename... Args>
