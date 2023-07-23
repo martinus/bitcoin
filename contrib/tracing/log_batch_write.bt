@@ -1,0 +1,59 @@
+#!/usr/bin/env bpftrace
+
+/*
+
+  USAGE:
+
+  bpftrace contrib/tracing/log_batch_write.bt
+
+  This script collects total time spent in CCoinsViewCache::BatchWrite and CCoinsViewDB::BatchWrite.
+*/
+
+BEGIN
+{
+  @coinsViewCacheNs = (uint64)0;
+  @coinsViewCacheStartNs = (uint64)0;
+  @coinsViewCacheCount = (uint64)0;
+
+  @coinsViewDBNs = (uint64)0;
+  @coinsViewDBStartNs = (uint64)0;
+  @coinsViewDBCount = (uint64)0;
+
+  @blockManagerReadBlockFromDiskNs = (uint64)0;
+  @blockManagerReadBlockFromDiskStartNs = (uint64)0;
+  @blockManagerReadBlockFromDiskCount = (uint64)0;
+}
+
+END
+{
+  printf("\n");
+  printf("%10ldms%10ld calls CCoinsViewCache::BatchWrite\n", @coinsViewCacheNs/1e6, @coinsViewCacheCount);
+  printf("%10ldms%10ld calls CCoinsViewDB::BatchWrite\n", @coinsViewDBNs/1e6, @coinsViewDBCount);
+  printf("%10ldms%10ld calls BlockManager::ReadBlockFromDisk\n", @blockManagerReadBlockFromDiskNs/1e6, @blockManagerReadBlockFromDiskCount);
+}
+
+
+usdt:./src/bitcoind:coins_view_cache:batch_write_start
+{
+  @coinsViewCacheStartNs = nsecs;
+}
+usdt:./src/bitcoind:coins_view_cache:batch_write_end
+{
+  if (@coinsViewCacheStartNs) {
+    @coinsViewCacheNs += nsecs - @coinsViewCacheStartNs;
+    ++@coinsViewCacheCount;
+  }
+}
+
+
+usdt:./src/bitcoind:coins_view_db:batch_write_start
+{
+  @coinsViewDBStartNs = nsecs;
+}
+usdt:./src/bitcoind:coins_view_db:batch_write_end
+{
+  if (@coinsViewDBStartNs) {
+    @coinsViewDBNs += nsecs - @coinsViewDBStartNs;
+    ++@coinsViewDBCount;
+  }
+}

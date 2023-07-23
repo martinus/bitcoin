@@ -11,6 +11,7 @@
 #include <random.h>
 #include <uint256.h>
 #include <util/signalinterrupt.h>
+#include <util/trace.h>
 #include <util/translation.h>
 #include <util/vector.h>
 
@@ -113,6 +114,7 @@ std::vector<uint256> CCoinsViewDB::GetHeadBlocks() const {
 }
 
 bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase) {
+    TRACE1(coins_view_db, batch_write_start, mapCoins.size());
     CDBBatch batch(*m_db);
     size_t count = 0;
     size_t changed = 0;
@@ -167,6 +169,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
     LogPrint(BCLog::COINDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
     bool ret = m_db->WriteBatch(batch);
     LogPrint(BCLog::COINDB, "Committed %u changed transaction outputs (out of %u) to coin database...\n", (unsigned int)changed, (unsigned int)count);
+    TRACE1(coins_view_db, batch_write_end, mapCoins.size());
     return ret;
 }
 

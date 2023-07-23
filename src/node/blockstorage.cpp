@@ -19,6 +19,7 @@
 #include <util/batchpriority.h>
 #include <util/fs.h>
 #include <util/signalinterrupt.h>
+#include <util/trace.h>
 #include <validation.h>
 
 #include <map>
@@ -762,6 +763,7 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
 
 bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) const
 {
+    TRACE(block_manager, read_block_from_disk_start);
     block.SetNull();
 
     // Open history file to read
@@ -787,6 +789,7 @@ bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) cons
         return error("ReadBlockFromDisk: Errors in block solution at %s", pos.ToString());
     }
 
+    TRACE(block_manager, read_block_from_disk_end);
     return true;
 }
 

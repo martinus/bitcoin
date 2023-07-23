@@ -180,6 +180,7 @@ void CCoinsViewCache::SetBestBlock(const uint256 &hashBlockIn) {
 }
 
 bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn, bool erase) {
+    TRACE2(coins_view_cache, batch_write_start, mapCoins.size(), cacheCoins.size());
     for (CCoinsMap::iterator it = mapCoins.begin();
             it != mapCoins.end();
             it = erase ? mapCoins.erase(it) : std::next(it)) {
@@ -248,6 +249,7 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
         }
     }
     hashBlock = hashBlockIn;
+    TRACE2(coins_view_cache, batch_write_end, mapCoins.size(), cacheCoins.size());
     return true;
 }
 
