@@ -11,6 +11,7 @@
 #include <random.h>
 #include <uint256.h>
 #include <util/signalinterrupt.h>
+#include <util/trace.h>
 #include <util/translation.h>
 #include <util/vector.h>
 
@@ -113,6 +114,7 @@ std::vector<uint256> CCoinsViewDB::GetHeadBlocks() const {
 }
 
 bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase) {
+    TRACE1(coins_view_db, batch_write_start, mapCoins.size());
     CDBBatch batch(*m_db);
     size_t count = 0;
     size_t changed = 0;
@@ -135,17 +137,16 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
     batch.Erase(DB_BEST_BLOCK);
     batch.Write(DB_HEAD_BLOCKS, Vector(hashBlock, old_tip));
 
-    for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end();) {
-        if (it->second.flags & CCoinsCacheEntry::DIRTY) {
-            CoinEntry entry(&it->first);
-            if (it->second.coin.IsSpent())
+    for (auto const& coin : mapCoins) {
+        if (coin.second.flags & CCoinsCacheEntry::DIRTY) {
+            CoinEntry entry(&coin.first);
+            if (coin.second.coin.IsSpent())
                 batch.Erase(entry);
             else
-                batch.Write(entry, it->second.coin);
+                batch.Write(entry, coin.second.coin);
             changed++;
         }
         count++;
-        it = erase ? mapCoins.erase(it) : std::next(it);
         if (batch.SizeEstimate() > m_options.batch_write_bytes) {
             LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
             m_db->WriteBatch(batch);
@@ -159,6 +160,9 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
             }
         }
     }
+    if (erase) {
+        mapCoins.clear();
+    }
 
     // In the last batch, mark the database as consistent with hashBlock again.
     batch.Erase(DB_HEAD_BLOCKS);
@@ -167,6 +171,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
     LogPrint(BCLog::COINDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
     bool ret = m_db->WriteBatch(batch);
     LogPrint(BCLog::COINDB, "Committed %u changed transaction outputs (out of %u) to coin database...\n", (unsigned int)changed, (unsigned int)count);
+    TRACE1(coins_view_db, batch_write_end, mapCoins.size());
     return ret;
 }
 
