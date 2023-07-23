@@ -116,7 +116,6 @@ std::vector<uint256> CCoinsViewDB::GetHeadBlocks() const {
 bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, bool erase) {
     TRACE1(coins_view_db, batch_write_start, mapCoins.size());
     CDBBatch batch(*m_db);
-    size_t count = 0;
     size_t changed = 0;
     assert(!hashBlock.IsNull());
 
@@ -146,7 +145,6 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
                 batch.Write(entry, c.second.coin);
             changed++;
         }
-        count++;
         if (batch.SizeEstimate() > m_options.batch_write_bytes) {
             LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
             m_db->WriteBatch(batch);
@@ -160,6 +158,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
             }
         }
     }
+    auto count = mapCoins.size();
     if (erase) {
         mapCoins.clear();
     }
