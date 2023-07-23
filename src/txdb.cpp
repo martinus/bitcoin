@@ -137,17 +137,16 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
     batch.Erase(DB_BEST_BLOCK);
     batch.Write(DB_HEAD_BLOCKS, Vector(hashBlock, old_tip));
 
-    for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end();) {
-        if (it->second.flags & CCoinsCacheEntry::DIRTY) {
-            CoinEntry entry(&it->first);
-            if (it->second.coin.IsSpent())
+    for (auto const& c : mapCoins) {
+        if (c.second.flags & CCoinsCacheEntry::DIRTY) {
+            CoinEntry entry(&c.first);
+            if (c.second.coin.IsSpent())
                 batch.Erase(entry);
             else
-                batch.Write(entry, it->second.coin);
+                batch.Write(entry, c.second.coin);
             changed++;
         }
         count++;
-        it = erase ? mapCoins.erase(it) : std::next(it);
         if (batch.SizeEstimate() > m_options.batch_write_bytes) {
             LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
             m_db->WriteBatch(batch);
@@ -160,6 +159,9 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
                 }
             }
         }
+    }
+    if (erase) {
+        mapCoins.clear();
     }
 
     // In the last batch, mark the database as consistent with hashBlock again.
