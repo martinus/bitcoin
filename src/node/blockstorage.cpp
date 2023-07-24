@@ -767,7 +767,11 @@ bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) cons
     block.SetNull();
 
     // Open history file to read
-    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    CBufferedFile filein(/*fileIn=*/OpenBlockFile(pos, true),
+                         /*nBufSize=*/1024,
+                         /*nRewindIn=*/0,
+                         /*nTypeIn=*/SER_DISK,
+                         /*nVersionIn=*/CLIENT_VERSION);
     if (filein.IsNull()) {
         return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
     }

@@ -666,6 +666,8 @@ public:
         src = fileIn;
     }
 
+    bool IsNull() const { return src == nullptr; }
+
     ~CBufferedFile()
     {
         fclose();
