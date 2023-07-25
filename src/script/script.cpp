@@ -154,11 +154,12 @@ unsigned int CScript::GetSigOpCount(bool fAccurate) const
 {
     unsigned int n = 0;
     const_iterator pc = begin();
+    const const_iterator endIt = end();
     opcodetype lastOpcode = OP_INVALIDOPCODE;
-    while (pc < end())
+    while (pc < endIt)
     {
         opcodetype opcode;
-        if (!GetOp(pc, opcode))
+        if (!GetScriptOp(pc, endIt, opcode, nullptr))
             break;
         if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY)
             n++;
