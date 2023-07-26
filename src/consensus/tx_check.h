@@ -5,6 +5,8 @@
 #ifndef BITCOIN_CONSENSUS_TX_CHECK_H
 #define BITCOIN_CONSENSUS_TX_CHECK_H
 
+#include <span.h>
+
 /**
  * Context-independent transaction checking code that can be called outside the
  * bitcoin server and doesn't depend on chain or mempool state. Transaction
@@ -12,9 +14,11 @@
  * belongs in tx_verify.h/cpp instead.
  */
 
+class CTxIn;
 class CTransaction;
 class TxValidationState;
 
+bool HasDuplicateInputs(Span<const CTxIn> vin);
 bool CheckTransaction(const CTransaction& tx, TxValidationState& state);
 
 #endif // BITCOIN_CONSENSUS_TX_CHECK_H
