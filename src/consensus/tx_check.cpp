@@ -10,6 +10,20 @@
 
 bool HasDuplicateInputs(Span<const CTxIn> vin)
 {
+    // fast path: quickly create a simple fingerprint for each outpoint and check these for duplicates.
+    // This can have false positives but no false negatives.
+    auto fingerprints = prevector<7, uint64_t>(vin.size());
+    for (size_t i = 0; i < vin.size(); ++i) {
+        auto const& outpoint = vin[i].prevout;
+        fingerprints[i] = outpoint.hash.GetUint64(0) + outpoint.n;
+    }
+
+    std::sort(fingerprints.begin(), fingerprints.end());
+    if (fingerprints.end() == std::adjacent_find(fingerprints.begin(), fingerprints.end())) {
+        return false;
+    }
+
+    // slow path, the fingerprint check has failed, re-check if we have duplicates
     std::set<COutPoint> vInOutPoints;
     for (const auto& txin : vin) {
         if (!vInOutPoints.insert(txin.prevout).second) {
@@ -48,7 +62,7 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     // of a tx as spent, it does not check if the tx has duplicate inputs.
     // Failure to run this check will result in either a crash or an inflation bug, depending on the implementation of
     // the underlying coins database.
-    if (HasDuplicateInputs(tx.vin)) {
+    if (tx.vin.size() > 1 && HasDuplicateInputs(tx.vin)) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-duplicate");
     }
 
