@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 The Bitcoin Core developers
+// Copyright (c) 2017-2023 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,6 +7,17 @@
 #include <consensus/amount.h>
 #include <primitives/transaction.h>
 #include <consensus/validation.h>
+
+bool HasDuplicateInputs(Span<const CTxIn> vin)
+{
+    std::set<COutPoint> vInOutPoints;
+    for (const auto& txin : vin) {
+        if (!vInOutPoints.insert(txin.prevout).second) {
+            return true;
+        }
+    }
+    return false;
+}
 
 bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 {
@@ -37,10 +48,8 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     // of a tx as spent, it does not check if the tx has duplicate inputs.
     // Failure to run this check will result in either a crash or an inflation bug, depending on the implementation of
     // the underlying coins database.
-    std::set<COutPoint> vInOutPoints;
-    for (const auto& txin : tx.vin) {
-        if (!vInOutPoints.insert(txin.prevout).second)
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-duplicate");
+    if (HasDuplicateInputs(tx.vin)) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-duplicate");
     }
 
     if (tx.IsCoinBase())
