@@ -3,6 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <queue>
+#include <stdexcept>
 #include <validation.h>
 
 #include <kernel/coinstats.h>
@@ -2949,6 +2951,99 @@ void Chainstate::PruneBlockIndexCandidates() {
 }
 
 /**
+ * Loads blocks from the range into a buffer.
+ */
+
+struct Ret {
+    std::shared_ptr<const CBlock> block;
+    CBlockIndex* blockindex;
+};
+
+template <typename Range>
+class BlockLoader
+{
+    node::BlockManager& m_blockman;
+    size_t const m_max_buffered_blocks{};
+    Range& m_range;
+    std::mutex m_mutex{};
+    std::condition_variable m_cv{};
+    std::queue<Ret> m_blocks{};
+    bool m_has_finished{false};
+    std::thread m_worker;
+
+    void Loop()
+    {
+        LogPrintf("BlockLoader %d\n", __LINE__);
+        for (CBlockIndex* blockindex : m_range) {
+            LogPrintf("BlockLoader %d\n", __LINE__);
+            auto pblockNew = std::make_shared<CBlock>();
+            // TODO needs proper error handling!
+            assert(m_blockman.ReadBlockFromDisk(*pblockNew, *blockindex));
+            LogPrintf("BlockLoader %d\n", __LINE__);
+            auto lock = std::unique_lock(m_mutex);
+            LogPrintf("BlockLoader %d\n", __LINE__);
+            while (m_max_buffered_blocks == m_blocks.size()) {
+                m_cv.wait(lock);
+                LogPrintf("BlockLoader %d\n", __LINE__);
+            }
+
+            LogPrintf("BlockLoader %d\n", __LINE__);
+            m_blocks.emplace(Ret{std::move(pblockNew), blockindex});
+            lock.unlock();
+            LogPrintf("BlockLoader %d\n", __LINE__);
+            m_cv.notify_one();
+        }
+
+        LogPrintf("BlockLoader %d\n", __LINE__);
+        auto lock = std::unique_lock(m_mutex);
+        LogPrintf("BlockLoader %d\n", __LINE__);
+        m_has_finished = true;
+        lock.unlock();
+        LogPrintf("BlockLoader %d\n", __LINE__);
+        m_cv.notify_one();
+    }
+
+public:
+
+    BlockLoader(node::BlockManager& blockman, size_t max_buffered_blocks, Range& range)
+        : m_blockman{blockman},
+          m_max_buffered_blocks{max_buffered_blocks},
+          m_range{range},
+          m_worker{[this]() {
+              util::ThreadRename("blockloader");
+              Loop();
+          }}
+    {
+    }
+
+    /**
+     * Gets next block (if available), or nullptr. Blocks if buffering thread is not ready yet.
+     */
+    Ret next()
+    {
+        auto lock = std::unique_lock(m_mutex);
+        while (true) {
+            if (!m_blocks.empty()) {
+                auto ret = m_blocks.front();
+                m_blocks.pop();
+
+                // notify a potential waiting worker
+                lock.unlock();
+                m_cv.notify_one();
+                return ret;
+            }
+            if (m_has_finished) {
+                // nothing else to do
+                return {nullptr, nullptr};
+            }
+
+            // empty and not finished, wait for a signal
+            m_cv.wait(lock);
+        }
+    }
+};
+
+/**
  * Try to make some progress towards making pindexMostWork the active block.
  * pblock is either nullptr or a pointer to a CBlock corresponding to pindexMostWork.
  *
@@ -2998,7 +3093,21 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
         nHeight = nTargetHeight;
 
         // Connect new blocks.
-        for (CBlockIndex* pindexConnect : reverse_iterate(vpindexToConnect)) {
+        auto range = reverse_iterate(vpindexToConnect);
+        LogPrintf("ActivateBestChainStep %d\n", __LINE__);
+        auto blockLoader = BlockLoader(m_blockman, 8, range);
+        LogPrintf("ActivateBestChainStep %d\n", __LINE__);
+
+        while (true) {
+            LogPrintf("ActivateBestChainStep %d\n", __LINE__);
+            auto [block, pindexConnect] = blockLoader.next();
+            LogPrintf("ActivateBestChainStep %d\n", __LINE__);
+            if (nullptr == block) {
+                LogPrintf("ActivateBestChainStep %d\n", __LINE__);
+                break;
+            }
+            LogPrintf("ActivateBestChainStep %d\n", __LINE__);
+
             if (!ConnectTip(state, pindexConnect, pindexConnect == pindexMostWork ? pblock : std::shared_ptr<const CBlock>(), connectTrace, disconnectpool)) {
                 if (state.IsInvalid()) {
                     // The block violates a consensus rule.

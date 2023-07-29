@@ -799,15 +799,22 @@ bool BlockManager::ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos) cons
 
 bool BlockManager::ReadBlockFromDisk(CBlock& block, const CBlockIndex& index) const
 {
-    const FlatFilePos block_pos{WITH_LOCK(cs_main, return index.GetBlockPos())};
+    LogPrintf("ReadBlockFromDisk %d\n", __LINE__);
+    //const FlatFilePos block_pos{WITH_LOCK(cs_main, return index.GetBlockPos())};
+    const FlatFilePos block_pos{index.GetBlockPos()};
+    LogPrintf("ReadBlockFromDisk %d\n", __LINE__);
 
+    LogPrintf("ReadBlockFromDisk %d\n", __LINE__);
     if (!ReadBlockFromDisk(block, block_pos)) {
+        LogPrintf("ReadBlockFromDisk %d\n", __LINE__);
         return false;
     }
     if (block.GetHash() != index.GetBlockHash()) {
+        LogPrintf("ReadBlockFromDisk %d\n", __LINE__);
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
                      index.ToString(), block_pos.ToString());
     }
+    LogPrintf("ReadBlockFromDisk %d\n", __LINE__);
     return true;
 }
 
