@@ -181,41 +181,39 @@ void CCoinsViewCache::SetBestBlock(const uint256 &hashBlockIn) {
 
 bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn, bool erase) {
     TRACE_RAII(coins_view_cache, batch_write);
-    for (CCoinsMap::iterator it = mapCoins.begin();
-            it != mapCoins.end();
-            it = erase ? mapCoins.erase(it) : std::next(it)) {
+    for (auto& c : mapCoins) {
         // Ignore non-dirty entries (optimization).
-        if (!(it->second.flags & CCoinsCacheEntry::DIRTY)) {
+        if (!(c.second.flags & CCoinsCacheEntry::DIRTY)) {
             continue;
         }
-        CCoinsMap::iterator itUs = cacheCoins.find(it->first);
+        CCoinsMap::iterator itUs = cacheCoins.find(c.first);
         if (itUs == cacheCoins.end()) {
             // The parent cache does not have an entry, while the child cache does.
             // We can ignore it if it's both spent and FRESH in the child
-            if (!(it->second.flags & CCoinsCacheEntry::FRESH && it->second.coin.IsSpent())) {
+            if (!(c.second.flags & CCoinsCacheEntry::FRESH && c.second.coin.IsSpent())) {
                 // Create the coin in the parent cache, move the data up
                 // and mark it as dirty.
-                CCoinsCacheEntry& entry = cacheCoins[it->first];
+                CCoinsCacheEntry& entry = cacheCoins[c.first];
                 if (erase) {
                     // The `move` call here is purely an optimization; we rely on the
                     // `mapCoins.erase` call in the `for` expression to actually remove
                     // the entry from the child map.
-                    entry.coin = std::move(it->second.coin);
+                    entry.coin = std::move(c.second.coin);
                 } else {
-                    entry.coin = it->second.coin;
+                    entry.coin = c.second.coin;
                 }
                 cachedCoinsUsage += entry.coin.DynamicMemoryUsage();
                 entry.flags = CCoinsCacheEntry::DIRTY;
                 // We can mark it FRESH in the parent if it was FRESH in the child
                 // Otherwise it might have just been flushed from the parent's cache
                 // and already exist in the grandparent
-                if (it->second.flags & CCoinsCacheEntry::FRESH) {
+                if (c.second.flags & CCoinsCacheEntry::FRESH) {
                     entry.flags |= CCoinsCacheEntry::FRESH;
                 }
             }
         } else {
             // Found the entry in the parent cache
-            if ((it->second.flags & CCoinsCacheEntry::FRESH) && !itUs->second.coin.IsSpent()) {
+            if ((c.second.flags & CCoinsCacheEntry::FRESH) && !itUs->second.coin.IsSpent()) {
                 // The coin was marked FRESH in the child cache, but the coin
                 // exists in the parent cache. If this ever happens, it means
                 // the FRESH flag was misapplied and there is a logic error in
@@ -223,7 +221,7 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
                 throw std::logic_error("FRESH flag misapplied to coin that exists in parent cache");
             }
 
-            if ((itUs->second.flags & CCoinsCacheEntry::FRESH) && it->second.coin.IsSpent()) {
+            if ((itUs->second.flags & CCoinsCacheEntry::FRESH) && c.second.coin.IsSpent()) {
                 // The grandparent cache does not have an entry, and the coin
                 // has been spent. We can just delete it from the parent cache.
                 cachedCoinsUsage -= itUs->second.coin.DynamicMemoryUsage();
@@ -235,9 +233,9 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
                     // The `move` call here is purely an optimization; we rely on the
                     // `mapCoins.erase` call in the `for` expression to actually remove
                     // the entry from the child map.
-                    itUs->second.coin = std::move(it->second.coin);
+                    itUs->second.coin = std::move(c.second.coin);
                 } else {
-                    itUs->second.coin = it->second.coin;
+                    itUs->second.coin = c.second.coin;
                 }
                 cachedCoinsUsage += itUs->second.coin.DynamicMemoryUsage();
                 itUs->second.flags |= CCoinsCacheEntry::DIRTY;
@@ -247,6 +245,9 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
                 // from being flushed to the grandparent.
             }
         }
+    }
+    if (erase) {
+        mapCoins.clear();
     }
     hashBlock = hashBlockIn;
     return true;
