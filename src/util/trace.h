@@ -32,7 +32,9 @@
 #define TRACE9(context, event, a, b, c, d, e, f, g, h, i) BITCOIN_DISABLE_WARN_ZERO_VARIADIC_PUSH DTRACE_PROBE9(context, event, a, b, c, d, e, f, g, h, i) BITCOIN_DISABLE_WARN_ZERO_VARIADIC_POP
 #define TRACE10(context, event, a, b, c, d, e, f, g, h, i, j) BITCOIN_DISABLE_WARN_ZERO_VARIADIC_PUSH DTRACE_PROBE10(context, event, a, b, c, d, e, f, g, h, i, j) BITCOIN_DISABLE_WARN_ZERO_VARIADIC_POP
 #define TRACE11(context, event, a, b, c, d, e, f, g, h, i, j, k) BITCOIN_DISABLE_WARN_ZERO_VARIADIC_PUSH DTRACE_PROBE11(context, event, a, b, c, d, e, f, g, h, i, j, k) BITCOIN_DISABLE_WARN_ZERO_VARIADIC_POP
-#define TRACE12(context, event, a, b, c, d, e, f, g, h, i, j, k, l) BITCOIN_DISABLE_WARN_ZERO_VARIADIC_PUSH DTRACE_PROBE12(context, event, a, b, c, d, e, f, g, h, i, j, k, l) BITCOIN_DISABLE_WARN_ZERO_VARIADIC_POP
+#define TRACE12(context, event, a, b, c, d, e, f, g, h, i, j, k, l)                                            \
+    BITCOIN_DISABLE_WARN_ZERO_VARIADIC_PUSH DTRACE_PROBE12(context, event, a, b, c, d, e, f, g, h, i, j, k, l) \
+    BITCOIN_DISABLE_WARN_ZERO_VARIADIC_POP
 
 // The RAII object calls the given operation on exit.
 // This is useful to reliably trace at any return point.
@@ -63,9 +65,9 @@ public:
 // The given trace context is called with a single argument 1 for entry
 // and 0 for the exit.
 #define TRACE_RAII(context, event)                \
-    TRACE1(context, event, 1);                    \
+    TRACE(context, event##_enter);                \
     auto UNIQUE_NAME(tracer) = ::TraceOnExit([] { \
-        TRACE1(context, event, 0);                \
+        TRACE(context, event##_exit);          \
     })
 
 #else
