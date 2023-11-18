@@ -33,14 +33,15 @@ size_t CCoinsViewBacked::EstimateSize() const { return base->EstimateSize(); }
 
 CCoinsViewCache::CCoinsViewCache(CCoinsView* baseIn, bool deterministic) :
     CCoinsViewBacked(baseIn), m_deterministic(deterministic),
-    cacheCoins(0, SaltedOutpointHasher(/*deterministic=*/deterministic), CCoinsMap::key_equal{}, &m_cache_coins_memory_resource)
+    cm{std::make_unique<CoinsMapWithResource>(deterministic)}
 {}
 
 size_t CCoinsViewCache::DynamicMemoryUsage() const {
-    return memusage::DynamicUsage(cacheCoins) + cachedCoinsUsage;
+    return memusage::DynamicUsage(cm->m_cacheCoins) + cachedCoinsUsage;
 }
 
 CCoinsMap::iterator CCoinsViewCache::FetchCoin(const COutPoint &outpoint) const {
+    auto& cacheCoins = cm->m_cacheCoins;
     CCoinsMap::iterator it = cacheCoins.find(outpoint);
     if (it != cacheCoins.end())
         return it;
@@ -58,6 +59,7 @@ CCoinsMap::iterator CCoinsViewCache::FetchCoin(const COutPoint &outpoint) const 
 }
 
 bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
+    auto& cacheCoins = cm->m_cacheCoins;
     CCoinsMap::const_iterator it = FetchCoin(outpoint);
     if (it != cacheCoins.end()) {
         coin = it->second.coin;
@@ -67,6 +69,7 @@ bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
 }
 
 void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
+    auto& cacheCoins = cm->m_cacheCoins;
     assert(!coin.IsSpent());
     if (coin.out.scriptPubKey.IsUnspendable()) return;
     CCoinsMap::iterator it;
@@ -107,6 +110,7 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
 }
 
 void CCoinsViewCache::EmplaceCoinInternalDANGER(COutPoint&& outpoint, Coin&& coin) {
+    auto& cacheCoins = cm->m_cacheCoins;
     cachedCoinsUsage += coin.DynamicMemoryUsage();
     cacheCoins.emplace(
         std::piecewise_construct,
@@ -126,6 +130,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
 }
 
 bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout) {
+    auto& cacheCoins = cm->m_cacheCoins;
     CCoinsMap::iterator it = FetchCoin(outpoint);
     if (it == cacheCoins.end()) return false;
     cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
@@ -150,6 +155,7 @@ bool CCoinsViewCache::SpendCoin(const COutPoint &outpoint, Coin* moveout) {
 static const Coin coinEmpty;
 
 const Coin& CCoinsViewCache::AccessCoin(const COutPoint &outpoint) const {
+    auto& cacheCoins = cm->m_cacheCoins;
     CCoinsMap::const_iterator it = FetchCoin(outpoint);
     if (it == cacheCoins.end()) {
         return coinEmpty;
@@ -159,11 +165,13 @@ const Coin& CCoinsViewCache::AccessCoin(const COutPoint &outpoint) const {
 }
 
 bool CCoinsViewCache::HaveCoin(const COutPoint &outpoint) const {
+    auto& cacheCoins = cm->m_cacheCoins;
     CCoinsMap::const_iterator it = FetchCoin(outpoint);
     return (it != cacheCoins.end() && !it->second.coin.IsSpent());
 }
 
 bool CCoinsViewCache::HaveCoinInCache(const COutPoint &outpoint) const {
+    auto& cacheCoins = cm->m_cacheCoins;
     CCoinsMap::const_iterator it = cacheCoins.find(outpoint);
     return (it != cacheCoins.end() && !it->second.coin.IsSpent());
 }
@@ -179,6 +187,7 @@ void CCoinsViewCache::SetBestBlock(const uint256 &hashBlockIn) {
 }
 
 bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn, bool erase) {
+    auto& cacheCoins = cm->m_cacheCoins;
     for (CCoinsMap::iterator it = mapCoins.begin();
             it != mapCoins.end();
             it = erase ? mapCoins.erase(it) : std::next(it)) {
@@ -251,6 +260,7 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlockIn
 }
 
 bool CCoinsViewCache::Flush() {
+    auto& cacheCoins = cm->m_cacheCoins;
     bool fOk = base->BatchWrite(cacheCoins, hashBlock, /*erase=*/true);
     if (fOk) {
         if (!cacheCoins.empty()) {
@@ -265,6 +275,7 @@ bool CCoinsViewCache::Flush() {
 
 bool CCoinsViewCache::Sync()
 {
+    auto& cacheCoins = cm->m_cacheCoins;
     bool fOk = base->BatchWrite(cacheCoins, hashBlock, /*erase=*/false);
     // Instead of clearing `cacheCoins` as we would in Flush(), just clear the
     // FRESH/DIRTY flags of any coin that isn't spent.
@@ -282,6 +293,7 @@ bool CCoinsViewCache::Sync()
 
 void CCoinsViewCache::Uncache(const COutPoint& hash)
 {
+    auto& cacheCoins = cm->m_cacheCoins;
     CCoinsMap::iterator it = cacheCoins.find(hash);
     if (it != cacheCoins.end() && it->second.flags == 0) {
         cachedCoinsUsage -= it->second.coin.DynamicMemoryUsage();
@@ -296,6 +308,7 @@ void CCoinsViewCache::Uncache(const COutPoint& hash)
 }
 
 unsigned int CCoinsViewCache::GetCacheSize() const {
+    auto& cacheCoins = cm->m_cacheCoins;
     return cacheCoins.size();
 }
 
@@ -314,15 +327,14 @@ bool CCoinsViewCache::HaveInputs(const CTransaction& tx) const
 void CCoinsViewCache::ReallocateCache()
 {
     // Cache should be empty when we're calling this.
-    assert(cacheCoins.size() == 0);
-    cacheCoins.~CCoinsMap();
-    m_cache_coins_memory_resource.~CCoinsMapMemoryResource();
-    ::new (&m_cache_coins_memory_resource) CCoinsMapMemoryResource{};
-    ::new (&cacheCoins) CCoinsMap{0, SaltedOutpointHasher{/*deterministic=*/m_deterministic}, CCoinsMap::key_equal{}, &m_cache_coins_memory_resource};
+    assert(cm->m_cacheCoins.size() == 0);
+    cm.reset();
+    cm = std::make_unique<CoinsMapWithResource>(m_deterministic);
 }
 
 void CCoinsViewCache::SanityCheck() const
 {
+    auto& cacheCoins = cm->m_cacheCoins;
     size_t recomputed_usage = 0;
     for (const auto& [_, entry] : cacheCoins) {
         unsigned attr = 0;

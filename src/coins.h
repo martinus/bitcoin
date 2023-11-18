@@ -224,6 +224,16 @@ public:
     size_t EstimateSize() const override;
 };
 
+struct CoinsMapWithResource {
+    mutable CCoinsMapMemoryResource m_cache_coins_memory_resource;
+    mutable CCoinsMap m_cacheCoins;
+
+    explicit CoinsMapWithResource(bool deterministic)
+        : m_cache_coins_memory_resource{},
+          m_cacheCoins(0, SaltedOutpointHasher(/*deterministic=*/deterministic), CCoinsMap::key_equal{}, &m_cache_coins_memory_resource)
+    {
+    }
+};
 
 /** CCoinsView that adds a memory cache for transactions to another CCoinsView */
 class CCoinsViewCache : public CCoinsViewBacked
@@ -237,8 +247,7 @@ protected:
      * declared as "const".
      */
     mutable uint256 hashBlock;
-    mutable CCoinsMapMemoryResource m_cache_coins_memory_resource{};
-    mutable CCoinsMap cacheCoins;
+    std::unique_ptr<CoinsMapWithResource> cm{};
 
     /* Cached dynamic memory usage for the inner Coin objects. */
     mutable size_t cachedCoinsUsage{0};
