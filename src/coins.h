@@ -146,7 +146,7 @@ using CCoinsMap = std::unordered_map<COutPoint,
                                      std::equal_to<COutPoint>,
                                      PoolAllocator<std::pair<const COutPoint, CCoinsCacheEntry>,
                                                    sizeof(std::pair<const COutPoint, CCoinsCacheEntry>) + sizeof(void*) * 4,
-                                                   alignof(void*)>>;
+                                                   alignof(std::pair<const COutPoint, CCoinsCacheEntry>)>>;
 
 using CCoinsMapMemoryResource = CCoinsMap::allocator_type::ResourceType;
 
