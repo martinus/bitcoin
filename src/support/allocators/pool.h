@@ -5,6 +5,8 @@
 #ifndef BITCOIN_SUPPORT_ALLOCATORS_POOL_H
 #define BITCOIN_SUPPORT_ALLOCATORS_POOL_H
 
+#include <logging.h>
+
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -229,6 +231,12 @@ public:
 
             // Make sure we use the right amount of bytes for that freelist (might be rounded up),
             return std::exchange(m_available_memory_it, m_available_memory_it + round_bytes);
+        } else {
+            LogPrintf("Allocate: %d align(%d), MAX_BLOCK_SIZE_BYTES=%d, ALIGN_BYTES=%d\n",
+                bytes,
+                alignment,
+                MAX_BLOCK_SIZE_BYTES,
+                ALIGN_BYTES);
         }
 
         // Can't use the pool => use operator new()
