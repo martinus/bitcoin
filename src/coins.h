@@ -237,6 +237,9 @@ protected:
      * declared as "const".
      */
     mutable uint256 hashBlock;
+    /**
+     * The memory resource might be unused when CCoinsViewCache is constructed with another resource.
+     */
     mutable CCoinsMapMemoryResource m_cache_coins_memory_resource{};
     mutable CCoinsMap cacheCoins;
 
@@ -245,11 +248,17 @@ protected:
 
 public:
     CCoinsViewCache(CCoinsView *baseIn, bool deterministic = false);
+    CCoinsViewCache(CCoinsView *baseIn, CCoinsMapMemoryResource* resource, bool deterministic = false);
 
     /**
      * By deleting the copy constructor, we prevent accidentally using it when one intends to create a cache on top of a base cache.
      */
     CCoinsViewCache(const CCoinsViewCache &) = delete;
+
+    /**
+     * Gets the memory resource that's actually used in cacheCoins (which is not necessarily m_cache_coins_memory_resource)
+     */
+    CCoinsMapMemoryResource* GetCacheCoinsResource();
 
     // Standard CCoinsView methods
     bool GetCoin(const COutPoint &outpoint, Coin &coin) const override;

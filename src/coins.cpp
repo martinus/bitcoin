@@ -31,10 +31,22 @@ bool CCoinsViewBacked::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock,
 std::unique_ptr<CCoinsViewCursor> CCoinsViewBacked::Cursor() const { return base->Cursor(); }
 size_t CCoinsViewBacked::EstimateSize() const { return base->EstimateSize(); }
 
-CCoinsViewCache::CCoinsViewCache(CCoinsView* baseIn, bool deterministic) :
-    CCoinsViewBacked(baseIn), m_deterministic(deterministic),
-    cacheCoins(0, SaltedOutpointHasher(/*deterministic=*/deterministic), CCoinsMap::key_equal{}, &m_cache_coins_memory_resource)
-{}
+CCoinsViewCache::CCoinsViewCache(CCoinsView* baseIn, bool deterministic)
+    : CCoinsViewCache(baseIn, &m_cache_coins_memory_resource, deterministic)
+{
+}
+
+CCoinsViewCache::CCoinsViewCache(CCoinsView* baseIn, CCoinsMapMemoryResource* resource, bool deterministic)
+    : CCoinsViewBacked(baseIn),
+      m_deterministic(deterministic),
+      cacheCoins(0, SaltedOutpointHasher(/*deterministic=*/deterministic), CCoinsMap::key_equal{}, resource)
+{
+}
+
+CCoinsMapMemoryResource* CCoinsViewCache::GetCacheCoinsResource()
+{
+    return cacheCoins.get_allocator().resource();
+}
 
 size_t CCoinsViewCache::DynamicMemoryUsage() const {
     return memusage::DynamicUsage(cacheCoins) + cachedCoinsUsage;
@@ -315,10 +327,12 @@ void CCoinsViewCache::ReallocateCache()
 {
     // Cache should be empty when we're calling this.
     assert(cacheCoins.size() == 0);
-    cacheCoins.~CCoinsMap();
-    m_cache_coins_memory_resource.~CCoinsMapMemoryResource();
-    ::new (&m_cache_coins_memory_resource) CCoinsMapMemoryResource{};
-    ::new (&cacheCoins) CCoinsMap{0, SaltedOutpointHasher{/*deterministic=*/m_deterministic}, CCoinsMap::key_equal{}, &m_cache_coins_memory_resource};
+    if (cacheCoins.get_allocator().resource() == &m_cache_coins_memory_resource) {
+        cacheCoins.~CCoinsMap();
+        m_cache_coins_memory_resource.~CCoinsMapMemoryResource();
+        ::new (&m_cache_coins_memory_resource) CCoinsMapMemoryResource{};
+        ::new (&cacheCoins) CCoinsMap{0, SaltedOutpointHasher{/*deterministic=*/m_deterministic}, CCoinsMap::key_equal{}, &m_cache_coins_memory_resource};
+    }
 }
 
 void CCoinsViewCache::SanityCheck() const
