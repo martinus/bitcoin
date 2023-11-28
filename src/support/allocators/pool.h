@@ -32,7 +32,7 @@
  *
  * PoolResource is not thread-safe. It is intended to be used by PoolAllocator.
  *
- * @tparam MAX_BLOCK_SIZE_BYTES Maximum size to allocate with the pool. If larger
+ * @tparam REQUESTED_MAX_BLOCK_SIZE_BYTES Maximum size to allocate with the pool. If larger
  *         sizes are requested, allocation falls back to new().
  *
  * @tparam ALIGN_BYTES Required alignment for the allocations.
@@ -66,7 +66,7 @@
  * some memory available for the blocks, and when m_available_memory_it is at the
  * end, a new chunk will be allocated and added to the list.
  */
-template <std::size_t MAX_BLOCK_SIZE_BYTES, std::size_t ALIGN_BYTES>
+template <std::size_t REQUESTED_MAX_BLOCK_SIZE_BYTES, std::size_t ALIGN_BYTES>
 class PoolResource final
 {
     static_assert(ALIGN_BYTES > 0, "ALIGN_BYTES must be nonzero");
@@ -86,6 +86,7 @@ class PoolResource final
      * Internal alignment value. The larger of the requested ALIGN_BYTES and alignof(FreeList).
      */
     static constexpr std::size_t ELEM_ALIGN_BYTES = std::max(alignof(ListNode), ALIGN_BYTES);
+    static constexpr std::size_t MAX_BLOCK_SIZE_BYTES = (REQUESTED_MAX_BLOCK_SIZE_BYTES + ELEM_ALIGN_BYTES - 1) & ~(ELEM_ALIGN_BYTES - 1);
     static_assert((ELEM_ALIGN_BYTES & (ELEM_ALIGN_BYTES - 1)) == 0, "ELEM_ALIGN_BYTES must be a power of two");
     static_assert(sizeof(ListNode) <= ELEM_ALIGN_BYTES, "Units of size ELEM_SIZE_ALIGN need to be able to store a ListNode");
     static_assert((MAX_BLOCK_SIZE_BYTES & (ELEM_ALIGN_BYTES - 1)) == 0, "MAX_BLOCK_SIZE_BYTES needs to be a multiple of the alignment.");
@@ -158,7 +159,7 @@ class PoolResource final
             PlacementAddToList(m_available_memory_it, m_free_lists[remaining_available_bytes / ELEM_ALIGN_BYTES]);
         }
 
-        void* storage = ::operator new (m_chunk_size_bytes, std::align_val_t{ELEM_ALIGN_BYTES});
+        void* storage = ::operator new(m_chunk_size_bytes, std::align_val_t{ELEM_ALIGN_BYTES});
         m_available_memory_it = new (storage) std::byte[m_chunk_size_bytes];
         m_available_memory_end = m_available_memory_it + m_chunk_size_bytes;
         m_allocated_chunks.emplace_back(m_available_memory_it);
@@ -201,7 +202,7 @@ public:
     {
         for (std::byte* chunk : m_allocated_chunks) {
             std::destroy(chunk, chunk + m_chunk_size_bytes);
-            ::operator delete ((void*)chunk, std::align_val_t{ELEM_ALIGN_BYTES});
+            ::operator delete((void*)chunk, std::align_val_t{ELEM_ALIGN_BYTES});
         }
     }
 
@@ -232,7 +233,7 @@ public:
         }
 
         // Can't use the pool => use operator new()
-        return ::operator new (bytes, std::align_val_t{alignment});
+        return ::operator new(bytes, std::align_val_t{alignment});
     }
 
     /**
@@ -247,7 +248,7 @@ public:
             PlacementAddToList(p, m_free_lists[num_alignments]);
         } else {
             // Can't use the pool => forward deallocation to ::operator delete().
-            ::operator delete (p, std::align_val_t{alignment});
+            ::operator delete(p, std::align_val_t{alignment});
         }
     }
 
