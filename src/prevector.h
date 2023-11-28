@@ -5,6 +5,8 @@
 #ifndef BITCOIN_PREVECTOR_H
 #define BITCOIN_PREVECTOR_H
 
+#include <unaligned_wrapper.h>
+
 #include <assert.h>
 #include <cstdlib>
 #include <stdint.h>
@@ -152,12 +154,12 @@ private:
     union direct_or_indirect {
         char direct[sizeof(T) * N];
         struct {
-            char* indirect;
+            UnalignedWrapper<char*> indirect;
             size_type capacity;
         } indirect_contents;
     };
 #pragma pack(pop)
-    alignas(char*) direct_or_indirect _union = {};
+    alignas(size_type) direct_or_indirect _union = {};
     size_type _size = 0;
 
     static_assert(alignof(char*) % alignof(size_type) == 0 && sizeof(char*) % alignof(size_type) == 0, "size_type cannot have more restrictive alignment requirement than pointer");
@@ -165,8 +167,8 @@ private:
 
     T* direct_ptr(difference_type pos) { return reinterpret_cast<T*>(_union.direct) + pos; }
     const T* direct_ptr(difference_type pos) const { return reinterpret_cast<const T*>(_union.direct) + pos; }
-    T* indirect_ptr(difference_type pos) { return reinterpret_cast<T*>(_union.indirect_contents.indirect) + pos; }
-    const T* indirect_ptr(difference_type pos) const { return reinterpret_cast<const T*>(_union.indirect_contents.indirect) + pos; }
+    T* indirect_ptr(difference_type pos) { return reinterpret_cast<T*>(static_cast<char*>(_union.indirect_contents.indirect)) + pos; }
+    const T* indirect_ptr(difference_type pos) const { return reinterpret_cast<const T*>(static_cast<char*>(_union.indirect_contents.indirect)) + pos; }
     bool is_direct() const { return _size <= N; }
 
     void change_capacity(size_type new_capacity) {
