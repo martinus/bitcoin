@@ -11,6 +11,7 @@
 #include <compat/endian.h>
 #include <prevector.h>
 #include <span.h>
+#include <unaligned_wrapper.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -854,6 +855,23 @@ void Unserialize(Stream& is, prevector<N, T>& v)
     } else {
         Unserialize(is, Using<VectorFormatter<DefaultFormatter>>(v));
     }
+}
+
+
+/**
+ * UnalignedWrapper
+ */
+template <typename Stream, typename T>
+inline void Serialize(Stream& os, const UnalignedWrapper<T>& v)
+{
+    ::Serialize(os, static_cast<T>(v));
+}
+template <typename Stream, typename T>
+inline void Unserialize(Stream& is, UnalignedWrapper<T>& v)
+{
+    T tmp;
+    ::Unserialize(is, tmp);
+    v = tmp;
 }
 
 

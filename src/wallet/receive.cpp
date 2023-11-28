@@ -33,7 +33,7 @@ CAmount OutputGetCredit(const CWallet& wallet, const CTxOut& txout, const ismine
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
     LOCK(wallet.cs_wallet);
-    return ((wallet.IsMine(txout) & filter) ? txout.nValue : 0);
+    return ((wallet.IsMine(txout) & filter) ? static_cast<CAmount>(txout.nValue) : 0);
 }
 
 CAmount TxGetCredit(const CWallet& wallet, const CTransaction& tx, const isminefilter& filter)
@@ -80,7 +80,7 @@ CAmount OutputGetChange(const CWallet& wallet, const CTxOut& txout)
     AssertLockHeld(wallet.cs_wallet);
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
-    return (OutputIsChange(wallet, txout) ? txout.nValue : 0);
+    return (OutputIsChange(wallet, txout) ? static_cast<CAmount>(txout.nValue) : 0);
 }
 
 CAmount TxGetChange(const CWallet& wallet, const CTransaction& tx)
@@ -348,7 +348,7 @@ std::map<CTxDestination, CAmount> GetAddressBalances(const CWallet& wallet)
                 if(!ExtractDestination(output.scriptPubKey, addr))
                     continue;
 
-                CAmount n = wallet.IsSpent(COutPoint(Txid::FromUint256(walletEntry.first), i)) ? 0 : output.nValue;
+                CAmount n = wallet.IsSpent(COutPoint(Txid::FromUint256(walletEntry.first), i)) ? 0 : static_cast<CAmount>(output.nValue);
                 balances[addr] += n;
             }
         }

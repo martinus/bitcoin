@@ -12,6 +12,7 @@
 #include <serialize.h>
 #include <uint256.h>
 #include <util/transaction_identifier.h> // IWYU pragma: export
+#include <unaligned_wrapper.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -149,7 +150,7 @@ public:
 class CTxOut
 {
 public:
-    CAmount nValue;
+    UnalignedWrapper<CAmount> nValue{0};
     CScript scriptPubKey;
 
     CTxOut()
