@@ -405,7 +405,8 @@ private:
  * Tests in October 2015 showed use of this reduced dbcache memory usage by 23%
  *  and made an initial sync 13% faster.
  */
-typedef prevector<28, unsigned char> CScriptBase;
+typedef prevector<28, unsigned char, uint16_t, int16_t> CScriptBase;
+static_assert(MAX_SCRIPT_SIZE <= std::numeric_limits<CScriptBase::size_type>::max());
 
 bool GetScriptOp(CScriptBase::const_iterator& pc, CScriptBase::const_iterator end, opcodetype& opcodeRet, std::vector<unsigned char>* pvchRet);
 

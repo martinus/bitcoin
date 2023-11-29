@@ -725,8 +725,8 @@ template<typename Stream, typename C> void Unserialize(Stream& is, std::basic_st
  * prevector
  * prevectors of unsigned char are a special case and are intended to be serialized as a single opaque blob.
  */
-template<typename Stream, unsigned int N, typename T> inline void Serialize(Stream& os, const prevector<N, T>& v);
-template<typename Stream, unsigned int N, typename T> inline void Unserialize(Stream& is, prevector<N, T>& v);
+template<typename Stream, unsigned int N, typename T, typename Size, typename Diff> inline void Serialize(Stream& os, const prevector<N, T, Size, Diff>& v);
+template<typename Stream, unsigned int N, typename T, typename Size, typename Diff> inline void Unserialize(Stream& is, prevector<N, T, Size, Diff>& v);
 
 /**
  * vector
@@ -825,8 +825,8 @@ void Unserialize(Stream& is, std::basic_string<C>& str)
 /**
  * prevector
  */
-template <typename Stream, unsigned int N, typename T>
-void Serialize(Stream& os, const prevector<N, T>& v)
+template <typename Stream, unsigned int N, typename T, typename Size, typename Diff>
+void Serialize(Stream& os, const prevector<N, T, Size, Diff>& v)
 {
     if constexpr (std::is_same_v<T, unsigned char>) {
         WriteCompactSize(os, v.size());
@@ -838,8 +838,8 @@ void Serialize(Stream& os, const prevector<N, T>& v)
 }
 
 
-template <typename Stream, unsigned int N, typename T>
-void Unserialize(Stream& is, prevector<N, T>& v)
+template <typename Stream, unsigned int N, typename T, typename Size, typename Diff>
+void Unserialize(Stream& is, prevector<N, T, Size, Diff>& v)
 {
     if constexpr (std::is_same_v<T, unsigned char>) {
         // Limit size per read so bogus size value won't cause out of memory
