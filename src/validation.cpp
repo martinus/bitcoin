@@ -2047,7 +2047,7 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
                 COutPoint out(hash, o);
                 Coin coin;
                 bool is_spent = view.SpendCoin(out, &coin);
-                if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase) {
+                if (!is_spent || tx.vout[o] != coin.out || static_cast<uint32_t>(pindex->nHeight) != coin.nHeight || is_coinbase != coin.fCoinBase) {
                     if (!is_bip30_exception) {
                         fClean = false; // transaction output mismatch
                     }
@@ -5418,7 +5418,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
                       coins_count - coins_left);
             return false;
         }
-        if (coin.nHeight > base_height ||
+        if (coin.nHeight > static_cast<uint32_t>(base_height) ||
             outpoint.n >= std::numeric_limits<decltype(outpoint.n)>::max() // Avoid integer wrap-around in coinstats.cpp:ApplyHash
         ) {
             LogPrintf("[snapshot] bad snapshot data after deserializing %d coins\n",

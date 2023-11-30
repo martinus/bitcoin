@@ -12,6 +12,7 @@
 #include <primitives/transaction.h>
 #include <serialize.h>
 #include <support/allocators/pool.h>
+#include <unaligned_wrapper.h>
 #include <uint256.h>
 #include <util/hasher.h>
 
@@ -34,15 +35,23 @@ public:
     //! unspent transaction output
     CTxOut out;
 
-    //! whether containing transaction was a coinbase
-    unsigned int fCoinBase : 1;
+    union {
+        //! whether containing transaction was a coinbase
+        UnalignedBitmaskWrapper<uint32_t, 0, 1> fCoinBase{};
 
-    //! at which height this containing transaction was included in the active block chain
-    uint32_t nHeight : 31;
+        //! at which height this containing transaction was included in the active block chain
+        UnalignedBitmaskWrapper<uint32_t, 1, 31> nHeight;
+    };
 
     //! construct a Coin from a CTxOut and height/coinbase information.
-    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(nHeightIn) {}
-    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn) : out(outIn), fCoinBase(fCoinBaseIn),nHeight(nHeightIn) {}
+    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn) : out(std::move(outIn)) {
+        fCoinBase = fCoinBaseIn;
+        nHeight = nHeightIn;
+    }
+    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn) : out(outIn) {
+        fCoinBase = fCoinBaseIn;
+        nHeight = nHeightIn;
+    }
 
     void Clear() {
         out.SetNull();
@@ -51,7 +60,10 @@ public:
     }
 
     //! empty constructor
-    Coin() : fCoinBase(false), nHeight(0) { }
+    Coin() {
+        fCoinBase = false;
+        nHeight = 0;
+    }
 
     bool IsCoinBase() const {
         return fCoinBase;
