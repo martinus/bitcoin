@@ -110,6 +110,7 @@ BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
             BOOST_CHECK(feeEst.estimateFee(2).GetFeePerK() < 9*baseRate.GetFeePerK() + deltaFee);
             BOOST_CHECK(feeEst.estimateFee(2).GetFeePerK() > 9*baseRate.GetFeePerK() - deltaFee);
         }
+        SyncWithValidationInterfaceQueue();
     }
 
     std::vector<CAmount> origFeeEst;
