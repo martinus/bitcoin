@@ -132,23 +132,10 @@ struct CCoinsCacheEntry
     CCoinsCacheEntry(Coin&& coin_, unsigned char flag) : coin(std::move(coin_)), flags(flag) {}
 };
 
-/**
- * PoolAllocator's MAX_BLOCK_SIZE_BYTES parameter here uses sizeof the data, and adds the size
- * of 4 pointers. We do not know the exact node size used in the std::unordered_node implementation
- * because it is implementation defined. Most implementations have an overhead of 1 or 2 pointers,
- * so nodes can be connected in a linked list, and in some cases the hash value is stored as well.
- * Using an additional sizeof(void*)*4 for MAX_BLOCK_SIZE_BYTES should thus be sufficient so that
- * all implementations can allocate the nodes from the PoolAllocator.
- */
-using CCoinsMap = std::unordered_map<COutPoint,
-                                     CCoinsCacheEntry,
-                                     SaltedOutpointHasher,
-                                     std::equal_to<COutPoint>,
-                                     PoolAllocator<std::pair<const COutPoint, CCoinsCacheEntry>,
-                                                   sizeof(std::pair<const COutPoint, CCoinsCacheEntry>) + sizeof(void*) * 4>>;
-
-using CCoinsMapMemoryResource = CCoinsMap::allocator_type::ResourceType;
-
+struct CCoinsMap {
+    std::unordered_map<COutPoint, size_t, SaltedOutpointHasher> map;
+    std::vector<CCoinsCacheEntry> data;
+};
 /** Cursor for iterating over CoinsView state */
 class CCoinsViewCursor
 {
@@ -236,7 +223,6 @@ protected:
      * declared as "const".
      */
     mutable uint256 hashBlock;
-    mutable CCoinsMapMemoryResource m_cache_coins_memory_resource{};
     mutable CCoinsMap cacheCoins;
 
     /* Cached dynamic memory usage for the inner Coin objects. */
@@ -348,7 +334,7 @@ private:
      * @note this is marked const, but may actually append to `cacheCoins`, increasing
      * memory usage.
      */
-    CCoinsMap::iterator FetchCoin(const COutPoint &outpoint) const;
+    CCoinsCacheEntry* FetchCoin(const COutPoint &outpoint) const;
 };
 
 //! Utility function to add all of a transaction's outputs to a cache.
