@@ -132,9 +132,11 @@ struct CCoinsCacheEntry
     CCoinsCacheEntry(Coin&& coin_, unsigned char flag) : coin(std::move(coin_)), flags(flag) {}
 };
 
+using CCoinsMapEntry = std::pair<COutPoint const*, CCoinsCacheEntry>;
+
 struct CCoinsMap {
     std::unordered_map<COutPoint, size_t, SaltedOutpointHasher> map;
-    std::vector<CCoinsCacheEntry> data;
+    std::vector<CCoinsMapEntry> data;
 };
 /** Cursor for iterating over CoinsView state */
 class CCoinsViewCursor
@@ -334,7 +336,7 @@ private:
      * @note this is marked const, but may actually append to `cacheCoins`, increasing
      * memory usage.
      */
-    CCoinsCacheEntry* FetchCoin(const COutPoint &outpoint) const;
+    CCoinsMapEntry* FetchCoin(const COutPoint &outpoint) const;
 };
 
 //! Utility function to add all of a transaction's outputs to a cache.
