@@ -47,7 +47,53 @@ public:
      * @see https://gcc.gnu.org/onlinedocs/gcc-13.2.0/libstdc++/manual/manual/unordered_associative.html
      */
     size_t operator()(const COutPoint& id) const noexcept {
-        return SipHashUint256Extra(k0, k1, id.hash, id.n);
+        auto const rapid_mum = [](uint64_t* a, uint64_t* b) {
+#if defined(__SIZEOF_INT128__)
+            __uint128_t r = *a;
+            r *= *b;
+            *a = (uint64_t)r;
+            *b = (uint64_t)(r >> 64);
+#elif defined(_MSC_VER) && (defined(_WIN64) || defined(_M_HYBRID_CHPE_ARM64))
+#if defined(_M_X64)
+            *a = _umul128(*a, *b, b);
+#else
+            uint64_t c = __umulh(*a, *b);
+            *a = *a * *b;
+            *b = c;
+#endif
+#else
+            uint64_t ha = *a >> 32, hb = *b >> 32, la = (uint32_t)*a, lb = (uint32_t)*b, hi, lo;
+            uint64_t rh = ha * hb, rm0 = ha * lb, rm1 = hb * la, rl = la * lb, t = rl + (rm0 << 32), c = t < rl;
+            lo = t + (rm1 << 32);
+            c += lo < t;
+            hi = rh + (rm0 >> 32) + (rm1 >> 32) + c;
+            *a = lo;
+            *b = hi;
+#endif
+        };
+
+        auto const rapid_mix = [&rapid_mum](uint64_t a, uint64_t b) -> uint64_t {
+            rapid_mum(&a, &b);
+            return a ^ b;
+        };
+
+        // return SipHashUint256Extra(k0, k1, id.hash, id.n);
+        // (32+4) + 8+8 = 52 byte (6.5 uint64_t)
+        // p0 = id.G
+        uint256 const& h = id.hash;
+
+        // Default secret parameters.
+        static constexpr uint64_t secret[3] = {0x2d358dccaa6c78a5ull, 0x8bb84b93962eacc9ull, 0x4b33a62ed433d4a3ull};
+        static constexpr uint64_t len = 48;
+        uint64_t seed = id.n;
+
+        seed ^= rapid_mix(seed ^ secret[0], secret[1]) ^ len;
+        seed = rapid_mix(h.GetUint64(0) ^ secret[2], h.GetUint64(1) ^ seed ^ secret[1]);
+        seed = rapid_mix(h.GetUint64(2) ^ secret[2], h.GetUint64(3) ^ seed);
+        uint64_t a = k0 ^ secret[1];
+        uint64_t b = k1 ^ seed;
+        rapid_mum(&a, &b);
+        return rapid_mix(a ^ secret[0] ^ len, b ^ secret[1]);
     }
 };
 
