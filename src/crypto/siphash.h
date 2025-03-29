@@ -14,7 +14,10 @@
 class CSipHasher
 {
 private:
-    uint64_t v[4];
+    uint64_t v0;
+    uint64_t v1;
+    uint64_t v2;
+    uint64_t v3;
     uint64_t tmp;
     uint8_t count; // Only the low 8 bits of the input size matter.
 

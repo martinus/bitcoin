@@ -26,18 +26,16 @@
 
 CSipHasher::CSipHasher(uint64_t k0, uint64_t k1)
 {
-    v[0] = 0x736f6d6570736575ULL ^ k0;
-    v[1] = 0x646f72616e646f6dULL ^ k1;
-    v[2] = 0x6c7967656e657261ULL ^ k0;
-    v[3] = 0x7465646279746573ULL ^ k1;
+    v0 = 0x736f6d6570736575ULL ^ k0;
+    v1 = 0x646f72616e646f6dULL ^ k1;
+    v2 = 0x6c7967656e657261ULL ^ k0;
+    v3 = 0x7465646279746573ULL ^ k1;
     count = 0;
     tmp = 0;
 }
 
 CSipHasher& CSipHasher::Write(uint64_t data)
 {
-    uint64_t v0 = v[0], v1 = v[1], v2 = v[2], v3 = v[3];
-
     assert(count % 8 == 0);
 
     v3 ^= data;
@@ -45,18 +43,12 @@ CSipHasher& CSipHasher::Write(uint64_t data)
     SIPROUND;
     v0 ^= data;
 
-    v[0] = v0;
-    v[1] = v1;
-    v[2] = v2;
-    v[3] = v3;
-
     count += 8;
     return *this;
 }
 
 CSipHasher& CSipHasher::Write(std::span<const unsigned char> data)
 {
-    uint64_t v0 = v[0], v1 = v[1], v2 = v[2], v3 = v[3];
     uint64_t t = tmp;
     uint8_t c = count;
 
@@ -73,10 +65,6 @@ CSipHasher& CSipHasher::Write(std::span<const unsigned char> data)
         data = data.subspan(1);
     }
 
-    v[0] = v0;
-    v[1] = v1;
-    v[2] = v2;
-    v[3] = v3;
     count = c;
     tmp = t;
 
@@ -85,7 +73,7 @@ CSipHasher& CSipHasher::Write(std::span<const unsigned char> data)
 
 uint64_t CSipHasher::Finalize() const
 {
-    uint64_t v0 = v[0], v1 = v[1], v2 = v[2], v3 = v[3];
+    uint64_t v0 = this->v0, v1 = this->v1, v2 = this->v2, v3 = this->v3;
 
     uint64_t t = tmp | (((uint64_t)count) << 56);
 
